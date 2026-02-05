@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenVPN Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .main-content {
+            padding: 40px;
+        }
+
+        .status-card {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 10px;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.active {
+            background: #4CAF50;
+        }
+
+        .status-indicator.inactive {
+            background: #f44336;
+        }
+
+        .status-indicator.unknown {
+            background: #ff9800;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .control-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            border: 1px solid #e9ecef;
+        }
+
+        .control-card h3 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #495057;
+            font-weight: 500;
+        }
+
+        select, input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #f44336 0%, #e91e63 100%);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+        }
+
+        .logs-container {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+
+        .message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .footer {
+            background: #2c3e50;
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 20px;
+            }
+            
+            .controls {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 OpenVPN Manager</h1>
+            <p>Gestione e controllo delle connessioni VPN</p>
+        </div>
+
+        <div class="main-content">
+            <div id="message-container"></div>
+
+            <div class="status-card">
+                <h2>Stato del Servizio VPN</h2>
+                <div id="vpn-status">
+                    <div class="loading"></div>
+                    Caricamento stato...
+                </div>
+            </div>
+
+            <div class="controls">
+                <div class="control-card">
+                    <h3>📡 Connessione VPN</h3>
+                    <form id="connect-form">
+                        <div class="form-group">
+                            <label for="config-select">Configurazione VPN:</label>
+                            <select id="config-select" required>
+                                <option value="">Caricamento configurazioni...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="username">Username (opzionale):</label>
+                            <input type="text" id="username" placeholder="Inserisci username">
+                        </div>
+                        <div class="form-group">
+                            <label for="password">Password (opzionale):</label>
+                            <input type="password" id="password" placeholder="Inserisci password">
+                        </div>
+                        <button type="submit" class="btn btn-success">🔗 Connetti</button>
+                        <button type="button" id="disconnect-btn" class="btn btn-danger">🔌 Disconnetti</button>
+                    </form>
+                </div>
+
+                <div class="control-card">
+                    <h3>📊 Informazioni di Sistema</h3>
+                    <div id="system-info">
+                        <p><strong>Porta Server:</strong> 4000</p>
+                        <p><strong>Stato:</strong> <span id="connection-status">Sconosciuto</span></p>
+                        <p><strong>Configurazioni:</strong> <span id="config-count">0</span></p>
+                    </div>
+                    <button id="refresh-btn" class="btn">🔄 Aggiorna</button>
+                    <button id="logs-btn" class="btn">📋 Mostra Log</button>
+                </div>
+            </div>
+
+            <div class="control-card" id="logs-section" style="display: none;">
+                <h3>📋 Log di Sistema</h3>
+                <div class="logs-container" id="logs-content">
+                    Caricamento log...
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>© Copyright 2024-2026 Nsfr750 - All rights reserved.</p>
+            <p>OpenVPN Manager v1.0.0</p>
+        </div>
+    </div>
+
+    <script>
+        class VPNManager {
+            constructor() {
+                this.baseURL = '';
+                this.init();
+            }
+
+            init() {
+                this.bindEvents();
+                this.loadVPNStatus();
+                this.loadConfigs();
+                this.setupAutoRefresh();
+            }
+
+            bindEvents() {
+                document.getElementById('connect-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.connectVPN();
+                });
+
+                document.getElementById('disconnect-btn').addEventListener('click', () => {
+                    this.disconnectVPN();
+                });
+
+                document.getElementById('refresh-btn').addEventListener('click', () => {
+                    this.loadVPNStatus();
+                    this.loadConfigs();
+                });
+
+                document.getElementById('logs-btn').addEventListener('click', () => {
+                    this.toggleLogs();
+                });
+            }
+
+            async apiCall(endpoint, method = 'GET', data = null) {
+                try {
+                    const options = {
+                        method,
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    };
+
+                    if (data) {
+                        options.body = JSON.stringify(data);
+                    }
+
+                    const response = await fetch(`${this.baseURL}/api/vpn${endpoint}`, options);
+                    return await response.json();
+                } catch (error) {
+                    throw new Error(`Errore di comunicazione: ${error.message}`);
+                }
+            }
+
+            async loadVPNStatus() {
+                try {
+                    const status = await this.apiCall('/status');
+                    this.updateStatusDisplay(status);
+                } catch (error) {
+                    this.showMessage('Errore nel caricamento dello stato VPN', 'error');
+                    this.updateStatusDisplay({ status: 'unknown', error: error.message });
+                }
+            }
+
+            updateStatusDisplay(status) {
+                const statusDiv = document.getElementById('vpn-status');
+                const statusIndicator = status.status === 'active' ? 'active' : 
+                                       status.status === 'inactive' ? 'inactive' : 'unknown';
+                
+                statusDiv.innerHTML = `
+                    <span class="status-indicator ${statusIndicator}"></span>
+                    <strong>Stato: ${status.status.toUpperCase()}</strong>
+                    ${status.service ? `<br><small>Servizio: ${status.service}</small>` : ''}
+                    ${status.error ? `<br><small>Errore: ${status.error}</small>` : ''}
+                `;
+
+                document.getElementById('connection-status').textContent = 
+                    status.status === 'active' ? 'Connesso' : 
+                    status.status === 'inactive' ? 'Disconnesso' : 'Sconosciuto';
+            }
+
+            async loadConfigs() {
+                try {
+                    const data = await this.apiCall('/configs');
+                    const select = document.getElementById('config-select');
+                    
+                    select.innerHTML = '<option value="">Seleziona una configurazione...</option>';
+                    
+                    data.configs.forEach(config => {
+                        const option = document.createElement('option');
+                        option.value = config.name;
+                        option.textContent = `${config.name} (${(config.size / 1024).toFixed(1)} KB)`;
+                        select.appendChild(option);
+                    });
+
+                    document.getElementById('config-count').textContent = data.configs.length;
+                } catch (error) {
+                    this.showMessage('Errore nel caricamento delle configurazioni', 'error');
+                }
+            }
+
+            async connectVPN() {
+                const configName = document.getElementById('config-select').value;
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+
+                if (!configName) {
+                    this.showMessage('Seleziona una configurazione VPN', 'error');
+                    return;
+                }
+
+                try {
+                    this.showMessage('Connessione in corso...', 'info');
+                    const result = await this.apiCall('/connect', 'POST', {
+                        configName,
+                        username,
+                        password
+                    });
+
+                    if (result.success) {
+                        this.showMessage(result.message, 'success');
+                        setTimeout(() => this.loadVPNStatus(), 2000);
+                    } else {
+                        this.showMessage(result.error || 'Errore durante la connessione', 'error');
+                    }
+                } catch (error) {
+                    this.showMessage(`Errore: ${error.message}`, 'error');
+                }
+            }
+
+            async disconnectVPN() {
+                try {
+                    this.showMessage('Disconnessione in corso...', 'info');
+                    const result = await this.apiCall('/disconnect', 'POST');
+
+                    if (result.success) {
+                        this.showMessage(result.message, 'success');
+                        setTimeout(() => this.loadVPNStatus(), 2000);
+                    } else {
+                        this.showMessage(result.error || 'Errore durante la disconnessione', 'error');
+                    }
+                } catch (error) {
+                    this.showMessage(`Errore: ${error.message}`, 'error');
+                }
+            }
+
+            async loadLogs() {
+                try {
+                    const data = await this.apiCall('/logs');
+                    document.getElementById('logs-content').textContent = data.logs || 'Nessun log disponibile';
+                } catch (error) {
+                    document.getElementById('logs-content').textContent = `Errore nel caricamento dei log: ${error.message}`;
+                }
+            }
+
+            toggleLogs() {
+                const logsSection = document.getElementById('logs-section');
+                if (logsSection.style.display === 'none') {
+                    logsSection.style.display = 'block';
+                    this.loadLogs();
+                    document.getElementById('logs-btn').textContent = '📋 Nascondi Log';
+                } else {
+                    logsSection.style.display = 'none';
+                    document.getElementById('logs-btn').textContent = '📋 Mostra Log';
+                }
+            }
+
+            showMessage(message, type = 'info') {
+                const container = document.getElementById('message-container');
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${type}`;
+                messageDiv.textContent = message;
+                
+                container.innerHTML = '';
+                container.appendChild(messageDiv);
+
+                setTimeout(() => {
+                    messageDiv.style.opacity = '0';
+                    setTimeout(() => messageDiv.remove(), 300);
+                }, 5000);
+            }
+
+            setupAutoRefresh() {
+                setInterval(() => {
+                    this.loadVPNStatus();
+                }, 30000); // Aggiorna ogni 30 secondi
+            }
+        }
+
+        // Inizializza l'applicazione quando il DOM è caricato
+        document.addEventListener('DOMContentLoaded', () => {
+            new VPNManager();
+        });
+    </script>
+</body>
+</html>
