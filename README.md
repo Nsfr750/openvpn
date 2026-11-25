@@ -5,67 +5,88 @@ Applicazione Node.js per la gestione e il controllo di connessioni OpenVPN trami
 ## Caratteristiche
 
 - 🌐 Interfaccia web moderna e responsive
+- 🔑 Autenticazione utente con sessione (login)
+- 🛡️ Rate limiting sulle API e protezione anti path traversal
 - 🔐 Gestione di configurazioni VPN multiple
+- ⚡ Connessioni VPN multiple simultanee con statistiche per istanza
 - 📊 Monitoraggio dello stato delle connessioni
 - 📋 Visualizzazione dei log di sistema
 - 🔗 Connessione/disconnessione con un click
+- 🌗 Tema dark/light selezionabile
+- 🌍 Interfaccia multilingua (IT/EN)
+- 📖 Documentazione API interattiva (Swagger UI su `/api-docs`)
+- 🐳 Supporto Docker
 - 📱 Design mobile-friendly
 
 ## Requisiti
 
-- Node.js 14+ 
+- Node.js 14+
 - OpenVPN installato sul sistema
 - Permessi di amministratore per gestire i processi VPN
 
 ## Installazione
 
 1. Clona il repository:
+
 ```bash
 git clone <repository-url>
 cd openvpn-manager
 ```
 
-2. Installa le dipendenze:
+1. Installa le dipendenze:
+
 ```bash
 npm install
 ```
 
-3. Configura le variabili d'ambiente:
+1. Configura le variabili d'ambiente:
+
 ```bash
 cp .env.example .env
 # Modifica .env secondo le tue esigenze
 ```
 
-4. Crea la directory per le configurazioni VPN:
+1. Crea la directory per le configurazioni VPN:
+
 ```bash
 mkdir vpn_configs
 ```
 
-5. Posiziona i tuoi file `.ovpn` nella directory `vpn_configs/`
+1. Posiziona i tuoi file `.ovpn` nella directory `vpn_configs/`
 
 ## Utilizzo
 
 ### Avvio del Server
 
 Per avviare il server in modalità produzione:
+
 ```bash
 npm start
 ```
 
 Per sviluppo con auto-ricarica:
+
 ```bash
 npm run dev
 ```
 
 L'applicazione sarà disponibile su `http://localhost:4000`
 
+### Docker
+
+Per eseguire l'applicazione in un container (richiede `/dev/net/tun` e la capability `NET_ADMIN`):
+
+```bash
+docker compose up -d --build
+```
+
 ### Interfaccia Web
 
 1. Apri il browser e naviga su `http://localhost:4000`
-2. Seleziona una configurazione VPN dal menu a tendina
-3. Inserisci username e password se richiesto
-4. Clicca "Connetti" per avviare la connessione VPN
-5. Usa "Disconnetti" per terminare tutte le connessioni
+1. Seleziona una configurazione VPN dal menu a tendina
+1. Inserisci username e password se richiesto
+1. Clicca "Connetti" per avviare la connessione VPN
+1. Usa "Disconnetti" per terminare tutte le connessioni
 
 ### API Endpoints
 
@@ -76,6 +97,11 @@ L'applicazione espone le seguenti API REST:
 - `POST /api/vpn/connect` - Avvia connessione VPN
 - `POST /api/vpn/disconnect` - Termina connessioni VPN
 - `GET /api/vpn/logs` - Log di sistema OpenVPN
+- `GET /api/vpn/stats` - Statistiche connessione (banda, durata)
+- `POST /api/vpn/upload` - Carica un file `.ovpn`/`.conf` (multipart)
+- `POST /api/auth/login` - Login (sessione)
+- `POST /api/auth/logout` - Logout
+- `GET /api/auth/status` - Stato autenticazione
 
 #### Esempio di utilizzo API
 
@@ -99,7 +125,7 @@ fetch('/api/vpn/connect', {
 
 ## Struttura del Progetto
 
-```
+```text
 openvpn-manager/
 ├── server.js              # Server Express principale
 ├── package.json           # Dipendenze e script
@@ -118,12 +144,25 @@ openvpn-manager/
 - `VPN_CONFIG_PATH`: Percorso configurazioni VPN (default: ./vpn_configs)
 - `VPN_MANAGEMENT_PORT`: Porta gestione OpenVPN (default: 7505)
 - `DEBUG`: Modalità debug (default: false)
+- `AUTH_ENABLED`: Abilita autenticazione interfaccia web (default: true)
+- `AUTH_USERNAME`: Username per il login (default: admin)
+- `AUTH_PASSWORD`: Password per il login (se vuota, generata casualmente ad ogni avvio)
+- `SESSION_SECRET`: Segreto per le sessioni (impostare un valore casuale in produzione)
+- `COOKIE_SECURE`: Cookie solo via HTTPS (default: false)
+- `RATE_LIMIT_WINDOW_MS`: Finestra del rate limit (default: 900000)
+- `RATE_LIMIT_MAX`: Richieste API max per finestra (default: 100)
+- `LOGIN_RATE_LIMIT_MAX`: Tentativi di login max per finestra (default: 10)
+- `HTTPS_ENABLED`: Abilita HTTPS (default: false, richiede certificato e chiave)
+- `SSL_CERT_PATH`: Percorso del certificato SSL
+- `SSL_KEY_PATH`: Percorso della chiave SSL
+- `LOG_DIR`: Directory dei log applicativi (default: ./logs)
 
 ### Configurazioni VPN
 
-I file di configurazione OpenVPN (.ovpn o .conf) devono essere posizionati nella directory `vpn_configs/`. 
+I file di configurazione OpenVPN (.ovpn o .conf) devono essere posizionati nella directory `vpn_configs/`.
 
 L'applicazione supporta:
+
 - Autenticazione con certificati
 - Autenticazione username/password
 - Configurazioni multiple
@@ -139,12 +178,13 @@ L'applicazione supporta:
 ### Problemi Comuni
 
 1. **"OpenVPN non trovato"**: Assicurati che OpenVPN sia installato e nel PATH di sistema
-2. **"Permessi insufficienti"**: Esegui l'applicazione come amministratore
-3. **"Configurazione non trovata"**: Verifica che i file .ovpn siano nella directory corretta
+1. **"Permessi insufficienti"**: Esegui l'applicazione come amministratore
+1. **"Configurazione non trovata"**: Verifica che i file .ovpn siano nella directory corretta
 
 ### Log di Debug
 
 Per abilitare i log di debug:
+
 ```bash
 DEBUG=true npm start
 ```
@@ -158,15 +198,17 @@ Questo progetto è rilasciato sotto licenza GPLv3.
 ## Supporto
 
 Per segnalazioni di bug o richieste di supporto:
-- Email: info@tuxxle.org
-- GitHub: https://github.com/Nsfr750
+
+- Email: <info@tuxxle.org>
+- GitHub: <https://github.com/Nsfr750>
 
 ## Contributi
 
 I contributi sono benvenuti! Per favore:
+
 1. Fai un fork del progetto
-2. Crea un branch per la tua feature
-3. Invia una pull request
+1. Crea un branch per la tua feature
+1. Invia una pull request
 
 ---
 

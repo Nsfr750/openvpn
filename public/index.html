@@ -4,7 +4,41 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OpenVPN Manager</title>
+    <script>
+        // Applica il tema salvato prima del rendering per evitare flash
+        (function () {
+            var theme = localStorage.getItem('theme') ||
+                (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
     <style>
+        :root {
+            --page-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --container-bg: #ffffff;
+            --text-primary: #2c3e50;
+            --text-secondary: #495057;
+            --card-bg: #f8f9fa;
+            --card-border: #e9ecef;
+            --input-bg: #ffffff;
+            --input-border: #e9ecef;
+            --input-text: #333333;
+            --spinner-track: #f3f3f3;
+        }
+
+        [data-theme="dark"] {
+            --page-bg: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            --container-bg: #232338;
+            --text-primary: #e6e6f0;
+            --text-secondary: #a8a8c0;
+            --card-bg: #2d2d46;
+            --card-border: #3d3d5c;
+            --input-bg: #2d2d46;
+            --input-border: #3d3d5c;
+            --input-text: #e6e6f0;
+            --spinner-track: #3d3d5c;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -13,7 +47,8 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--page-bg);
+            color: var(--text-primary);
             min-height: 100vh;
             padding: 20px;
         }
@@ -21,7 +56,7 @@
         .container {
             max-width: 1200px;
             margin: 0 auto;
-            background: white;
+            background: var(--container-bg);
             border-radius: 15px;
             box-shadow: 0 20px 40px rgba(0,0,0,0.1);
             overflow: hidden;
@@ -92,14 +127,14 @@
         }
 
         .control-card {
-            background: #f8f9fa;
+            background: var(--card-bg);
             border-radius: 10px;
             padding: 25px;
-            border: 1px solid #e9ecef;
+            border: 1px solid var(--card-border);
         }
 
         .control-card h3 {
-            color: #2c3e50;
+            color: var(--text-primary);
             margin-bottom: 20px;
             font-size: 1.3em;
         }
@@ -111,16 +146,18 @@
         label {
             display: block;
             margin-bottom: 8px;
-            color: #495057;
+            color: var(--text-secondary);
             font-weight: 500;
         }
 
-        select, input[type="text"], input[type="password"] {
+        select, input[type="text"], input[type="password"], input[type="file"] {
             width: 100%;
             padding: 12px;
-            border: 2px solid #e9ecef;
+            border: 2px solid var(--input-border);
             border-radius: 8px;
             font-size: 16px;
+            background: var(--input-bg);
+            color: var(--input-text);
             transition: border-color 0.3s;
         }
 
@@ -207,7 +244,7 @@
             display: inline-block;
             width: 20px;
             height: 20px;
-            border: 3px solid #f3f3f3;
+            border: 3px solid var(--spinner-track);
             border-top: 3px solid #667eea;
             border-radius: 50%;
             animation: spin 1s linear infinite;
@@ -226,6 +263,68 @@
             padding: 20px;
         }
 
+        .header-controls {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .header {
+            position: relative;
+        }
+
+        .btn-icon {
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-icon:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .lang-select {
+            padding: 6px 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.15);
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .lang-select option {
+            color: #333;
+        }
+
+        .conn-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            margin-bottom: 10px;
+            background: var(--input-bg);
+        }
+
+        .conn-item .conn-info {
+            font-size: 0.95em;
+            color: var(--text-primary);
+        }
+
+        .conn-item .conn-info small {
+            color: var(--text-secondary);
+        }
+
         @media (max-width: 768px) {
             .main-content {
                 padding: 20px;
@@ -240,70 +339,90 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🔐 OpenVPN Manager</h1>
-            <p>Gestione e controllo delle connessioni VPN</p>
+            <div class="header-controls">
+                <select id="lang-select" class="lang-select">
+                    <option value="it">🇮🇹 IT</option>
+                    <option value="en">🇬🇧 EN</option>
+                </select>
+                <button id="theme-toggle" class="btn-icon" title="Cambia tema">🌙</button>
+            </div>
+            <h1 data-i18n="appTitle">🔐 OpenVPN Manager</h1>
+            <p data-i18n="appSubtitle">Gestione e controllo delle connessioni VPN</p>
         </div>
 
         <div class="main-content">
             <div id="message-container"></div>
 
             <div class="status-card">
-                <h2>Stato del Servizio VPN</h2>
+                <h2 data-i18n="statusCardTitle">Stato del Servizio VPN</h2>
                 <div id="vpn-status">
                     <div class="loading"></div>
-                    Caricamento stato...
+                    <span data-i18n="loadingStatus">Caricamento stato...</span>
                 </div>
             </div>
 
             <div class="controls">
                 <div class="control-card">
-                    <h3>📡 Connessione VPN</h3>
+                    <h3 data-i18n="connectCardTitle">📡 Connessione VPN</h3>
                     <form id="connect-form">
                         <div class="form-group">
-                            <label for="config-select">Configurazione VPN:</label>
+                            <label for="config-select" data-i18n="configLabel">Configurazione VPN:</label>
                             <select id="config-select" required>
-                                <option value="">Caricamento configurazioni...</option>
+                                <option value="" data-i18n="loadingConfigs">Caricamento configurazioni...</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label for="username">Username (opzionale):</label>
-                            <input type="text" id="username" placeholder="Inserisci username">
+                            <label for="username" data-i18n="usernameLabel">Username (opzionale):</label>
+                            <input type="text" id="username" data-i18n-placeholder="usernamePlaceholder" placeholder="Inserisci username">
                         </div>
                         <div class="form-group">
-                            <label for="password">Password (opzionale):</label>
-                            <input type="password" id="password" placeholder="Inserisci password">
+                            <label for="password" data-i18n="passwordLabel">Password (opzionale):</label>
+                            <input type="password" id="password" data-i18n-placeholder="passwordPlaceholder" placeholder="Inserisci password">
                         </div>
-                        <button type="submit" class="btn btn-success">🔗 Connetti</button>
-                        <button type="button" id="disconnect-btn" class="btn btn-danger">🔌 Disconnetti</button>
+                        <button type="submit" class="btn btn-success" data-i18n="connectBtn">🔗 Connetti</button>
+                        <button type="button" id="disconnect-btn" class="btn btn-danger" data-i18n="disconnectBtn">🔌 Disconnetti tutto</button>
                     </form>
+                    <div class="form-group" style="margin-top: 20px; border-top: 1px solid var(--card-border); padding-top: 15px;">
+                        <label for="config-file" data-i18n="uploadLabel">Carica nuova configurazione:</label>
+                        <input type="file" id="config-file" accept=".ovpn,.conf">
+                        <button type="button" id="upload-btn" class="btn" data-i18n="uploadBtn">⬆️ Carica</button>
+                    </div>
                 </div>
 
                 <div class="control-card">
-                    <h3>📊 Informazioni di Sistema</h3>
+                    <h3 data-i18n="sysInfoTitle">📊 Informazioni di Sistema</h3>
                     <div id="system-info">
-                        <p><strong>Porta Server:</strong> 4000</p>
-                        <p><strong>Stato:</strong> <span id="connection-status">Sconosciuto</span></p>
-                        <p><strong>Configurazioni:</strong> <span id="config-count">0</span></p>
+                        <p><strong data-i18n="portServer">Porta Server:</strong> 4000</p>
+                        <p><strong data-i18n="statusLabel">Stato:</strong> <span id="connection-status">Sconosciuto</span></p>
+                        <p><strong data-i18n="configsCount">Configurazioni:</strong> <span id="config-count">0</span></p>
+                        <p><strong data-i18n="connCount">Connessioni attive:</strong> <span id="conn-count">0</span></p>
                     </div>
-                    <button id="refresh-btn" class="btn">🔄 Aggiorna</button>
-                    <button id="logs-btn" class="btn">📋 Mostra Log</button>
+                    <button id="refresh-btn" class="btn" data-i18n="refreshBtn">🔄 Aggiorna</button>
+                    <button id="logs-btn" class="btn" data-i18n="logsBtnShow">📋 Mostra Log</button>
+                    <button id="logout-btn" class="btn btn-danger" data-i18n="logoutBtn">🚪 Esci</button>
                 </div>
             </div>
 
+            <div class="control-card" style="margin-bottom: 30px;">
+                <h3 data-i18n="connectionsCardTitle">🔌 Connessioni Attive</h3>
+                <div id="connections-list"></div>
+            </div>
+
             <div class="control-card" id="logs-section" style="display: none;">
-                <h3>📋 Log di Sistema</h3>
+                <h3 data-i18n="logsCardTitle">📋 Log di Sistema</h3>
                 <div class="logs-container" id="logs-content">
-                    Caricamento log...
+                    <span data-i18n="loadingLogs">Caricamento log...</span>
                 </div>
             </div>
         </div>
 
         <div class="footer">
-            <p>© Copyright 2024-2026 Nsfr750 - All rights reserved.</p>
+            <p>© Copyright 2024-2026 Tuxxle - All rights reserved.</p>
             <p>OpenVPN Manager v1.0.0</p>
         </div>
     </div>
 
+    <script src="/i18n.js"></script>
     <script>
         class VPNManager {
             constructor() {
@@ -312,10 +431,20 @@
             }
 
             init() {
+                this.lastStatus = null;
+                this.initPreferences();
                 this.bindEvents();
                 this.loadVPNStatus();
                 this.loadConfigs();
+                this.loadStats();
                 this.setupAutoRefresh();
+            }
+
+            initPreferences() {
+                const theme = document.documentElement.getAttribute('data-theme') || 'light';
+                document.getElementById('theme-toggle').textContent = theme === 'dark' ? '☀️' : '🌙';
+                document.getElementById('lang-select').value = currentLang;
+                applyLanguage(currentLang);
             }
 
             bindEvents() {
@@ -331,11 +460,38 @@
                 document.getElementById('refresh-btn').addEventListener('click', () => {
                     this.loadVPNStatus();
                     this.loadConfigs();
+                    this.loadStats();
                 });
 
                 document.getElementById('logs-btn').addEventListener('click', () => {
                     this.toggleLogs();
                 });
+
+                document.getElementById('logout-btn').addEventListener('click', () => {
+                    this.logout();
+                });
+
+                document.getElementById('upload-btn').addEventListener('click', () => {
+                    this.uploadConfig();
+                });
+
+                document.getElementById('theme-toggle').addEventListener('click', () => {
+                    this.toggleTheme();
+                });
+
+                document.getElementById('lang-select').addEventListener('change', (e) => {
+                    applyLanguage(e.target.value);
+                    this.loadVPNStatus();
+                    this.loadStats();
+                });
+            }
+
+            toggleTheme() {
+                const current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+                const next = current === 'dark' ? 'light' : 'dark';
+                document.documentElement.setAttribute('data-theme', next);
+                localStorage.setItem('theme', next);
+                document.getElementById('theme-toggle').textContent = next === 'dark' ? '☀️' : '🌙';
             }
 
             async apiCall(endpoint, method = 'GET', data = null) {
@@ -352,9 +508,15 @@
                     }
 
                     const response = await fetch(`${this.baseURL}/api/vpn${endpoint}`, options);
+
+                    if (response.status === 401) {
+                        window.location.href = '/login';
+                        throw new Error(t('msgSessionExpired'));
+                    }
+
                     return await response.json();
                 } catch (error) {
-                    throw new Error(`Errore di comunicazione: ${error.message}`);
+                    throw new Error(`${t('msgCommError')}: ${error.message}`);
                 }
             }
 
@@ -363,26 +525,36 @@
                     const status = await this.apiCall('/status');
                     this.updateStatusDisplay(status);
                 } catch (error) {
-                    this.showMessage('Errore nel caricamento dello stato VPN', 'error');
+                    this.showMessage(t('msgStatusError'), 'error');
                     this.updateStatusDisplay({ status: 'unknown', error: error.message });
                 }
             }
 
             updateStatusDisplay(status) {
+                // Notifica toast quando lo stato della connessione cambia
+                if (this.lastStatus !== null && this.lastStatus !== status.status) {
+                    if (status.status === 'active') {
+                        this.showMessage(t('msgConnActive'), 'success');
+                    } else if (status.status === 'inactive') {
+                        this.showMessage(t('msgConnTerminated'), 'info');
+                    }
+                }
+                this.lastStatus = status.status;
+
                 const statusDiv = document.getElementById('vpn-status');
                 const statusIndicator = status.status === 'active' ? 'active' : 
                                        status.status === 'inactive' ? 'inactive' : 'unknown';
                 
                 statusDiv.innerHTML = `
                     <span class="status-indicator ${statusIndicator}"></span>
-                    <strong>Stato: ${status.status.toUpperCase()}</strong>
-                    ${status.service ? `<br><small>Servizio: ${status.service}</small>` : ''}
-                    ${status.error ? `<br><small>Errore: ${status.error}</small>` : ''}
+                    <strong>${t('stateStatus')} ${status.status.toUpperCase()}</strong>
+                    ${status.service ? `<br><small>${t('stateService')} ${status.service}</small>` : ''}
+                    ${status.error ? `<br><small>${t('stateError')} ${status.error}</small>` : ''}
                 `;
 
                 document.getElementById('connection-status').textContent = 
-                    status.status === 'active' ? 'Connesso' : 
-                    status.status === 'inactive' ? 'Disconnesso' : 'Sconosciuto';
+                    status.status === 'active' ? t('stateConnected') : 
+                    status.status === 'inactive' ? t('stateDisconnected') : t('stateUnknown');
             }
 
             async loadConfigs() {
@@ -390,7 +562,7 @@
                     const data = await this.apiCall('/configs');
                     const select = document.getElementById('config-select');
                     
-                    select.innerHTML = '<option value="">Seleziona una configurazione...</option>';
+                    select.innerHTML = `<option value="">${t('selectConfigPlaceholder')}</option>`;
                     
                     data.configs.forEach(config => {
                         const option = document.createElement('option');
@@ -401,7 +573,7 @@
 
                     document.getElementById('config-count').textContent = data.configs.length;
                 } catch (error) {
-                    this.showMessage('Errore nel caricamento delle configurazioni', 'error');
+                    this.showMessage(t('msgConfigsError'), 'error');
                 }
             }
 
@@ -411,12 +583,12 @@
                 const password = document.getElementById('password').value;
 
                 if (!configName) {
-                    this.showMessage('Seleziona una configurazione VPN', 'error');
+                    this.showMessage(t('msgSelectConfig'), 'error');
                     return;
                 }
 
                 try {
-                    this.showMessage('Connessione in corso...', 'info');
+                    this.showMessage(t('msgConnecting'), 'info');
                     const result = await this.apiCall('/connect', 'POST', {
                         configName,
                         username,
@@ -427,35 +599,142 @@
                         this.showMessage(result.message, 'success');
                         setTimeout(() => this.loadVPNStatus(), 2000);
                     } else {
-                        this.showMessage(result.error || 'Errore durante la connessione', 'error');
+                        this.showMessage(result.error || t('msgConnectError'), 'error');
                     }
                 } catch (error) {
-                    this.showMessage(`Errore: ${error.message}`, 'error');
+                    this.showMessage(`${t('errorPrefix')} ${error.message}`, 'error');
                 }
             }
 
-            async disconnectVPN() {
+            async disconnectVPN(configName = null) {
                 try {
-                    this.showMessage('Disconnessione in corso...', 'info');
-                    const result = await this.apiCall('/disconnect', 'POST');
+                    this.showMessage(t('msgDisconnecting'), 'info');
+                    const result = await this.apiCall('/disconnect', 'POST',
+                        configName ? { configName } : {});
 
                     if (result.success) {
                         this.showMessage(result.message, 'success');
                         setTimeout(() => this.loadVPNStatus(), 2000);
+                        setTimeout(() => this.loadStats(), 2000);
                     } else {
-                        this.showMessage(result.error || 'Errore durante la disconnessione', 'error');
+                        this.showMessage(result.error || t('msgDisconnectError'), 'error');
                     }
                 } catch (error) {
-                    this.showMessage(`Errore: ${error.message}`, 'error');
+                    this.showMessage(`${t('errorPrefix')} ${error.message}`, 'error');
                 }
+            }
+
+            async uploadConfig() {
+                const fileInput = document.getElementById('config-file');
+                if (!fileInput.files.length) {
+                    this.showMessage(t('msgUploadNoFile'), 'error');
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('config', fileInput.files[0]);
+
+                try {
+                    const response = await fetch('/api/vpn/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (response.status === 401) {
+                        window.location.href = '/login';
+                        return;
+                    }
+
+                    const result = await response.json();
+                    if (result.success) {
+                        this.showMessage(result.message, 'success');
+                        fileInput.value = '';
+                        this.loadConfigs();
+                    } else {
+                        this.showMessage(result.error || t('msgUploadError'), 'error');
+                    }
+                } catch (error) {
+                    this.showMessage(`${t('errorPrefix')} ${error.message}`, 'error');
+                }
+            }
+
+            async loadStats() {
+                try {
+                    const data = await this.apiCall('/stats');
+                    const stats = data.stats;
+
+                    document.getElementById('conn-count').textContent = stats.count;
+                    this.renderConnections(stats.connections || []);
+                } catch (error) {
+                    // Le statistiche non sono critiche: fallimento silenzioso
+                }
+            }
+
+            renderConnections(connections) {
+                const list = document.getElementById('connections-list');
+                if (!connections.length) {
+                    list.innerHTML = `<p style="color: var(--text-secondary)">${t('noConnections')}</p>`;
+                    return;
+                }
+
+                list.innerHTML = '';
+                connections.forEach(conn => {
+                    const item = document.createElement('div');
+                    item.className = 'conn-item';
+
+                    const traffic = conn.bytesIn !== null
+                        ? `${this.formatBytes(conn.bytesIn)} / ${this.formatBytes(conn.bytesOut)}`
+                        : '-';
+
+                    const info = document.createElement('div');
+                    info.className = 'conn-info';
+                    info.innerHTML = `
+                        <strong>${conn.config}</strong><br>
+                        <small>${t('uptimeLabel')}: ${this.formatDuration(conn.uptimeSeconds)} ·
+                        ${t('trafficLabel')}: ${traffic} · mgmt :${conn.mgmtPort}</small>
+                    `;
+
+                    const btn = document.createElement('button');
+                    btn.className = 'btn btn-danger';
+                    btn.textContent = t('disconnectOneBtn');
+                    btn.addEventListener('click', () => this.disconnectVPN(conn.config));
+
+                    item.appendChild(info);
+                    item.appendChild(btn);
+                    list.appendChild(item);
+                });
+            }
+
+            formatBytes(bytes) {
+                if (bytes < 1024) return `${bytes} B`;
+                if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+                if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+                return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
+            }
+
+            formatDuration(seconds) {
+                const h = Math.floor(seconds / 3600);
+                const m = Math.floor((seconds % 3600) / 60);
+                const s = seconds % 60;
+                if (h > 0) return `${h}h ${m}m ${s}s`;
+                if (m > 0) return `${m}m ${s}s`;
+                return `${s}s`;
             }
 
             async loadLogs() {
                 try {
                     const data = await this.apiCall('/logs');
-                    document.getElementById('logs-content').textContent = data.logs || 'Nessun log disponibile';
+                    document.getElementById('logs-content').textContent = data.logs || t('noLogs');
                 } catch (error) {
-                    document.getElementById('logs-content').textContent = `Errore nel caricamento dei log: ${error.message}`;
+                    document.getElementById('logs-content').textContent = `${t('msgLogsError')}: ${error.message}`;
+                }
+            }
+
+            async logout() {
+                try {
+                    await fetch('/api/auth/logout', { method: 'POST' });
+                } finally {
+                    window.location.href = '/login';
                 }
             }
 
@@ -464,10 +743,10 @@
                 if (logsSection.style.display === 'none') {
                     logsSection.style.display = 'block';
                     this.loadLogs();
-                    document.getElementById('logs-btn').textContent = '📋 Nascondi Log';
+                    document.getElementById('logs-btn').textContent = t('logsBtnHide');
                 } else {
                     logsSection.style.display = 'none';
-                    document.getElementById('logs-btn').textContent = '📋 Mostra Log';
+                    document.getElementById('logs-btn').textContent = t('logsBtnShow');
                 }
             }
 
@@ -489,6 +768,7 @@
             setupAutoRefresh() {
                 setInterval(() => {
                     this.loadVPNStatus();
+                    this.loadStats();
                 }, 30000); // Aggiorna ogni 30 secondi
             }
         }

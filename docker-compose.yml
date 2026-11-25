@@ -1,0 +1,17 @@
+services:
+  openvpn-manager:
+    build: .
+    container_name: openvpn-manager
+    ports:
+      - "4000:4000"
+    # Privilegi necessari per creare interfacce TUN/TAP
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    volumes:
+      - ./vpn_configs:/app/vpn_configs
+      - ./logs:/app/logs
+    env_file:
+      - .env
+    restart: unless-stopped

@@ -134,3 +134,7 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# Configurazioni VPN e credenziali temporanee
+vpn_configs/
+*.auth
