@@ -297,6 +297,7 @@ app.post('/api/vpn/connect', async (req, res) => {
     const mgmtPort = nextMgmtPort();
     const authFile = path.join(VPN_CONFIG_PATH, `${configName}.auth`);
     const vpnLog = path.join(logger.LOG_DIR, `openvpn-${configName}.log`);
+    let createdAuthFile = false;
 
     try {
         // --cd prima di --config: i percorsi relativi (ca, cert, key...) sono risolti
@@ -312,6 +313,7 @@ app.post('/api/vpn/connect', async (req, res) => {
         fs.rmSync(vpnLog, { force: true });
         if (username && password) {
             fs.writeFileSync(authFile, `${username}\n${password}\n`, { mode: 0o600 });
+            createdAuthFile = true;
             args.push('--auth-user-pass', authFile);
         }
 
@@ -334,7 +336,7 @@ app.post('/api/vpn/connect', async (req, res) => {
     } catch (error) {
         const details = error.message || error.error || readLogTail(vpnLog) ||
             (error.stderr || error.stdout || '').trim() || `openvpn terminato con codice ${error.code}`;
-        if (fs.existsSync(authFile)) fs.unlinkSync(authFile);
+        if (createdAuthFile) fs.rmSync(authFile, { force: true });
         logger.error(`Errore avvio connessione VPN (${configName}): ${details}`);
         res.status(500).json({ 
             error: 'Errore durante l\'avvio della connessione VPN',
