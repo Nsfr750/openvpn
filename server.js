@@ -200,30 +200,36 @@ async function stopAllConnections() {
     }));
 }
 
-// Interroga l'interfaccia di management di OpenVPN
+// Interroga l'interfaccia di management di OpenVPN. "exit" va inviato solo dopo la risposta
+// (SUCCESS:/ERROR:/END): se arriva insieme al comando, OpenVPN 2.7 su Windows chiude senza rispondere
 function queryManagement(command, port = Number(VPN_MANAGEMENT_PORT)) {
     return new Promise((resolve, reject) => {
         const socket = new net.Socket();
         let data = '';
+        let done = false;
+        const finish = (callback, value) => {
+            if (done) return;
+            done = true;
+            clearTimeout(timer);
+            callback(value);
+        };
         const timer = setTimeout(() => {
             socket.destroy();
-            reject(new Error('Timeout interfaccia di management'));
+            finish(reject, new Error('Timeout interfaccia di management'));
         }, 5000);
 
         socket.connect(port, '127.0.0.1', () => {
-            socket.write(`${command}\nexit\n`);
+            socket.write(`${command}\n`);
         });
         socket.on('data', (chunk) => {
             data += chunk.toString();
+            if (/^(SUCCESS|ERROR):|^END\r?$/m.test(data)) {
+                socket.end('exit\n');
+                finish(resolve, data);
+            }
         });
-        socket.on('end', () => {
-            clearTimeout(timer);
-            resolve(data);
-        });
-        socket.on('error', (error) => {
-            clearTimeout(timer);
-            reject(error);
-        });
+        socket.on('end', () => finish(resolve, data));
+        socket.on('error', (error) => finish(reject, error));
     });
 }
 

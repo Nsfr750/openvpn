@@ -38,6 +38,7 @@ describe('OpenVPN in primo piano (Windows)', () => {
 
         const stats = await request(app).get('/api/vpn/stats');
         expect(stats.body.stats.connections.map(c => c.config)).toContain('ok.ovpn');
+        expect(stats.body.stats.connections[0].bytesIn).not.toBeNull();
 
         const off = await request(app).post('/api/vpn/disconnect').send({ configName: 'ok.ovpn' });
         expect(off.status).toBe(200);

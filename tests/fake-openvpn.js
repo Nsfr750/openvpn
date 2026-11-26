@@ -20,6 +20,8 @@ if (mgmt !== -1) {
     const started = Date.now();
     require('net').createServer((socket) => {
         socket.on('data', (data) => {
+            // Come OpenVPN 2.7 su Windows: con "exit" nello stesso invio chiude senza rispondere
+            if (/load-stats[\s\S]*exit/.test(data.toString())) return socket.end();
             if (data.toString().includes('load-stats')) {
                 const s = (Date.now() - started) / 1000;
                 const bytesIn = Math.round(s * 250000 + 150000 * Math.sin(s / 3) ** 2 * s);
