@@ -7,6 +7,8 @@ e questo progetto aderisce al [Semantic Versioning 2.0.0](https://semver.org/lan
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-11-26
+
 ### Corretto
 
 - Grafico banda con "Nessuna connessione attiva" su Windows nonostante la VPN connessa: il comando di management veniva inviato insieme a `exit` e OpenVPN 2.7 chiudeva il socket senza rispondere. Ora `exit` viene inviato solo dopo la risposta (`SUCCESS:`/`ERROR:`/`END`)
@@ -72,6 +74,7 @@ e questo progetto aderisce al [Semantic Versioning 2.0.0](https://semver.org/lan
 
 - Directory `vpn_configs/` e file `.env` esclusi dal controllo di versione tramite `.gitignore`
 
-[Unreleased]: https://github.com/Nsfr750/openvpn/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/Nsfr750/openvpn/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/Nsfr750/openvpn/releases/tag/v1.1.1
 [1.1.0]: https://github.com/Nsfr750/openvpn/releases/tag/v1.1.0
 [1.0.0]: https://github.com/Nsfr750/openvpn-manager/releases/tag/v1.0.0

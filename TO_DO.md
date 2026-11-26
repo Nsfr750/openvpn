@@ -45,3 +45,4 @@ Lista delle funzionalità e miglioramenti pianificati per OpenVPN Manager.
 - [x] `--explicit-exit-notify` per i profili UDP e chiusura pulita delle connessioni all'arresto del server
 - [x] File di versione unico `version.js`, endpoint `/api/version`, script `npm run set-version` e healthcheck Docker
 - [x] Release 1.1.0
+- [x] Release 1.1.1 (statistiche di traffico vuote su Windows)

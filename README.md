@@ -2,7 +2,7 @@
 
 Applicazione Node.js per la gestione e il controllo di connessioni OpenVPN tramite interfaccia web.
 
-Versione corrente: **1.1.0** — novità e correzioni in [CHANGELOG.md](CHANGELOG.md).
+Versione corrente: **1.1.1** — novità e correzioni in [CHANGELOG.md](CHANGELOG.md).
 
 ## Caratteristiche
 

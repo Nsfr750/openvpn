@@ -1,7 +1,7 @@
 FROM node:22-alpine
 
 # Versione dell'immagine: allineata a version.js da "npm run set-version"
-ARG APP_VERSION=1.1.0
+ARG APP_VERSION=1.1.1
 LABEL org.opencontainers.image.title="OpenVPN Manager" \
       org.opencontainers.image.version=$APP_VERSION
 
