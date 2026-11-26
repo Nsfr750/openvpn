@@ -16,6 +16,7 @@ e questo progetto aderisce al [Semantic Versioning 2.0.0](https://semver.org/lan
 - Nuove variabili d'ambiente: `AUTH_ENABLED`, `AUTH_USERNAME`, `AUTH_PASSWORD`, `SESSION_SECRET`, `COOKIE_SECURE`, `RATE_LIMIT_WINDOW_MS`, `RATE_LIMIT_MAX`, `LOGIN_RATE_LIMIT_MAX`
 - Upload di file `.ovpn`/`.conf` tramite interfaccia web (endpoint `/api/vpn/upload`, multer)
 - Statistiche di connessione tramite interfaccia di management OpenVPN (endpoint `/api/vpn/stats`: banda, durata, client)
+- Grafico in tempo reale dell'utilizzo di banda (download/upload, ultimi 2 minuti) visibile con connessioni attive; le statistiche si aggiornano ogni 2 s
 - Notifiche toast nell'interfaccia quando lo stato della connessione cambia
 - Supporto HTTPS per il server web (`HTTPS_ENABLED`, `SSL_CERT_PATH`, `SSL_KEY_PATH`)
 - Logging su file con rotazione tramite winston (`logs/app.log`, `LOG_DIR`)
@@ -27,6 +28,7 @@ e questo progetto aderisce al [Semantic Versioning 2.0.0](https://semver.org/lan
 
 ### Corretto
 
+- Le statistiche di traffico erano sempre vuote: il comando di management inviato era `loadstats` invece di `load-stats`
 - Avvio connessione VPN: l'errore restituito ora include il motivo reale (output/log di OpenVPN) invece di `undefined`; il log di ogni istanza è scritto in `logs/openvpn-<config>.log`
 - I percorsi relativi nei file `.ovpn` (`ca`, `cert`, `key`, ...) sono risolti rispetto alla cartella delle configurazioni (`--cd`)
 - Supporto Windows: OpenVPN avviato come processo figlio senza `--daemon`, arresto via management o `taskkill`, stato con `tasklist`; eseguibile configurabile con `OPENVPN_BIN` (`OPENVPN_DAEMON` per forzare la modalità)
