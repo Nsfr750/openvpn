@@ -177,6 +177,28 @@ async function stopForeground(proc, mgmtPort) {
     clearTimeout(timer);
 }
 
+// --explicit-exit-notify è valido solo con UDP (default di OpenVPN se manca "proto")
+function isUdpProfile(configPath) {
+    const content = fs.readFileSync(configPath, 'utf8');
+    return !/^\s*(proto\s+tcp|remote\s+\S+(\s+\d+)?\s+tcp)/im.test(content);
+}
+
+// Chiude tutte le connessioni (SIGTERM via management: OpenVPN rimuove le rotte e,
+// con --explicit-exit-notify, avvisa il server della disconnessione)
+async function stopAllConnections() {
+    const conns = [...activeConnections.entries()];
+    activeConnections.clear();
+    await Promise.all(conns.map(async ([name, conn]) => {
+        try {
+            if (conn.proc) await stopForeground(conn.proc, conn.mgmtPort);
+            else await queryManagement('signal SIGTERM', conn.mgmtPort);
+        } catch (error) {
+            logger.warn(`Arresto di ${name} non riuscito: ${error.message}`);
+        }
+        removeTempAuth(conn);
+    }));
+}
+
 // Interroga l'interfaccia di management di OpenVPN
 function queryManagement(command, port = Number(VPN_MANAGEMENT_PORT)) {
     return new Promise((resolve, reject) => {
@@ -389,6 +411,9 @@ app.post('/api/vpn/connect', async (req, res) => {
             '--log', vpnLog,
             '--management', '127.0.0.1', String(mgmtPort)
         ];
+        // Avvisa il server alla disconnessione: senza, il server tiene aperta la vecchia
+        // sessione fino al timeout e la riconnessione successiva può cadere
+        if (isUdpProfile(configPath)) args.push('--explicit-exit-notify', '2');
 
         fs.rmSync(vpnLog, { force: true });
         if (username && password) {
@@ -657,8 +682,23 @@ function startServer() {
     }
 }
 
+// Arresto del server (Ctrl+C, chiusura della finestra, kill): chiude prima le connessioni VPN
+function setupGracefulShutdown() {
+    let stopping = false;
+    const shutdown = async (signal) => {
+        if (stopping) return;
+        stopping = true;
+        logger.info(`${signal} ricevuto: chiusura delle connessioni VPN in corso`);
+        await stopAllConnections();
+        process.exit(0);
+    };
+    ['SIGINT', 'SIGTERM', 'SIGHUP', 'SIGBREAK'].forEach(signal => process.on(signal, () => shutdown(signal)));
+}
+
 if (require.main === module) {
+    setupGracefulShutdown();
     startServer();
 }
 
 module.exports = app;
+module.exports.stopAllConnections = stopAllConnections;

@@ -28,6 +28,8 @@ e questo progetto aderisce al [Semantic Versioning 2.0.0](https://semver.org/lan
 
 ### Corretto
 
+- Riconnessione che cadeva dopo circa un minuto (`Inactivity timeout`) dopo il riavvio del server: con profili UDP OpenVPN viene avviato con `--explicit-exit-notify 2` e avvisa il server alla disconnessione; all'arresto del server (Ctrl+C, chiusura finestra, `SIGTERM`) tutte le connessioni vengono chiuse in modo pulito
+- Il grafico banda compare subito dopo la connessione invece che al successivo aggiornamento (fino a 30 s)
 - Grafico banda mai visibile: il polling ogni 2 s di `/api/vpn/stats` superava il rate limit (100 richieste/15 min) e riceveva `429`. `GET /api/vpn/status` e `GET /api/vpn/stats` sono ora esclusi dal rate limit (restano protetti dal login)
 - Le statistiche di traffico erano sempre vuote: il comando di management inviato era `loadstats` invece di `load-stats`
 - Avvio connessione VPN: l'errore restituito ora include il motivo reale (output/log di OpenVPN) invece di `undefined`; il log di ogni istanza è scritto in `logs/openvpn-<config>.log`
