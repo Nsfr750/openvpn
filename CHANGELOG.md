@@ -25,6 +25,10 @@ e questo progetto aderisce al [Semantic Versioning 2.0.0](https://semver.org/lan
 - Documentazione API con Swagger UI su `/api-docs` e specifica OpenAPI 3.0 su `/api-docs.json`
 - Dockerfile e docker-compose.yml per il deploy in container (richiede `NET_ADMIN` e `/dev/net/tun`)
 
+### Corretto
+
+- Upload configurazioni: i nomi file con spazi, parentesi, accenti o estensione maiuscola (es. `My VPN (1).OVPN`) vengono normalizzati invece di essere rifiutati
+
 ### Sicurezza
 
 - Validazione e sanitizzazione dei nomi dei file `.ovpn` per prevenire path traversal

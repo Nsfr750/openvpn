@@ -150,6 +150,23 @@ describe('Upload configurazioni', () => {
         }
     });
 
+    test('normalizza nomi con spazi, accenti ed estensione maiuscola', async () => {
+        const agent = await loginAgent();
+        const cases = [
+            ['My VPN (1).ovpn', 'My_VPN_1.ovpn'],
+            ['Client.OVPN', 'Client.ovpn'],
+            ['Città server.conf', 'Citta_server.conf']
+        ];
+        for (const [original, expected] of cases) {
+            const res = await agent
+                .post('/api/vpn/upload')
+                .attach('config', Buffer.from('client\n'), original);
+            expect(res.status).toBe(200);
+            expect(res.body.name).toBe(expected);
+            expect(fs.existsSync(path.join(TEST_CONFIG_DIR, expected))).toBe(true);
+        }
+    });
+
     test('rifiuta upload duplicati', async () => {
         const agent = await loginAgent();
         const res = await agent
