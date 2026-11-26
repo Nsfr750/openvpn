@@ -9,6 +9,8 @@ Applicazione Node.js per la gestione e il controllo di connessioni OpenVPN trami
 - 🛡️ Rate limiting sulle API e protezione anti path traversal
 - 🔐 Gestione di configurazioni VPN multiple
 - ⚡ Connessioni VPN multiple simultanee con statistiche per istanza
+- 📈 Grafico in tempo reale dell'utilizzo di banda (download/upload) con connessioni attive
+- 🪟 Supporto Windows (OpenVPN Community, senza `--daemon`)
 - 📊 Monitoraggio dello stato delle connessioni
 - 📋 Visualizzazione dei log di sistema
 - 🔗 Connessione/disconnessione con un click
@@ -30,6 +32,11 @@ Su Windows `--daemon` non è supportato: OpenVPN viene avviato come processo fig
 tramite interfaccia di management (o `taskkill`). L'eseguibile predefinito è
 `C:\Program Files\OpenVPN\bin\openvpn.exe`; per un percorso diverso impostare `OPENVPN_BIN`.
 Avviare il server da un terminale aperto come amministratore. Chiudendo il server si chiudono anche le connessioni.
+
+Senza privilegi di amministratore OpenVPN si autentica, ma Windows rifiuta l'aggiunta delle rotte
+(`route addition failed ... Accesso negato`) e il traffico non passa nel tunnel.
+
+Il file `.env` viene letto solo all'avvio: dopo ogni modifica riavviare `npm start`.
 
 ## Installazione
 
@@ -95,6 +102,11 @@ docker compose up -d --build
 1. Clicca "Connetti" per avviare la connessione VPN
 1. Usa "Disconnetti" per terminare tutte le connessioni
 
+Con almeno una connessione attiva compare la card **Utilizzo Banda**: un grafico di download e upload
+degli ultimi 2 minuti, aggiornato ogni 2 secondi, calcolato dai contatori di traffico dell'interfaccia
+di management di OpenVPN (somma di tutte le connessioni). Se lasci vuoti username e password,
+viene usato il file `<config>.auth` salvato accanto alla configurazione.
+
 ### API Endpoints
 
 L'applicazione espone le seguenti API REST:
@@ -157,7 +169,7 @@ openvpn-manager/
 - `SESSION_SECRET`: Segreto per le sessioni (impostare un valore casuale in produzione)
 - `COOKIE_SECURE`: Cookie solo via HTTPS (default: false)
 - `RATE_LIMIT_WINDOW_MS`: Finestra del rate limit (default: 900000)
-- `RATE_LIMIT_MAX`: Richieste API max per finestra (default: 100)
+- `RATE_LIMIT_MAX`: Richieste API max per finestra (default: 100; `GET /api/vpn/status` e `GET /api/vpn/stats` sono esclusi)
 - `LOGIN_RATE_LIMIT_MAX`: Tentativi di login max per finestra (default: 10)
 - `HTTPS_ENABLED`: Abilita HTTPS (default: false, richiede certificato e chiave)
 - `SSL_CERT_PATH`: Percorso del certificato SSL
@@ -179,8 +191,12 @@ L'applicazione supporta:
 ## Sicurezza
 
 - L'applicazione richiede permessi di amministratore per gestire i processi OpenVPN
-- Le credenziali vengono memorizzate temporaneamente e rimosse alla disconnessione
+- Le credenziali inserite nel form vengono scritte in `<config>.tmp-auth` (permessi `600`) e rimosse
+  alla disconnessione, in caso di errore o se OpenVPN termina; il file `<config>.auth` salvato non viene mai modificato
+- I file `*.auth`, `*.tmp-auth`, `.env` e `vpn_configs/` non vanno committati
 - Si consiglia di eseguire l'applicazione in un ambiente controllato
+
+Vedi anche [SECURITY.md](SECURITY.md).
 
 ## Troubleshooting
 
@@ -189,6 +205,15 @@ L'applicazione supporta:
 1. **"OpenVPN non trovato"**: Assicurati che OpenVPN sia installato e nel PATH di sistema
 1. **"Permessi insufficienti"**: Esegui l'applicazione come amministratore
 1. **"Configurazione non trovata"**: Verifica che i file .ovpn siano nella directory corretta
+1. **"Errore durante l'avvio della connessione VPN: ..."**: il testo dopo i due punti è il motivo
+   riportato da OpenVPN; il log completo è in `logs/openvpn-<config>.log`
+1. **`AUTH_FAILED`**: username/password VPN rifiutati dal server (es. NAS Asustor: l'utente deve
+   avere il permesso VPN in ADM)
+1. **"Credenziali non valide" al login**: controlla `AUTH_USERNAME`/`AUTH_PASSWORD` in `.env` e
+   riavvia il server; se `AUTH_PASSWORD` è vuota la password viene generata a ogni avvio e stampata in console
+1. **`ca.crt` non trovato**: i file indicati con percorso relativo nel `.ovpn` vanno messi in `vpn_configs/`
+1. **Grafico banda assente**: serve l'interfaccia di management (aggiunta automaticamente); verifica
+   in `logs/app.log` che la connessione riporti `management :7505`
 
 ### Log di Debug
 

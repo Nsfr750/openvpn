@@ -250,4 +250,17 @@ describe('Rate limiting', () => {
         const res = await request(limitedApp).get('/api/auth/status');
         expect(res.status).toBe(429);
     });
+
+    test('non limita il polling di stato e statistiche', async () => {
+        process.env.RATE_LIMIT_MAX = '3';
+        jest.resetModules();
+        const limitedApp = require('../server');
+        const agent = request.agent(limitedApp);
+        await agent.post('/api/auth/login').send({ username: 'admin', password: 'test-secret' }).expect(200);
+        for (let i = 0; i < 10; i++) {
+            await agent.get('/api/vpn/stats').expect(200);
+        }
+        const res = await agent.get('/api/vpn/configs');
+        expect(res.status).not.toBe(429);
+    });
 });

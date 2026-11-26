@@ -219,10 +219,13 @@ app.use(session({
     }
 }));
 
-// Rate limiting sulle API
+// Rate limiting sulle API. Le letture di stato/statistiche sono escluse: l'interfaccia
+// le interroga ogni 2 s con connessioni attive (grafico banda) e supererebbe il limite.
+const POLLING_PATHS = new Set(['/vpn/status', '/vpn/stats']);
 const apiLimiter = rateLimit({
     windowMs: RATE_LIMIT_WINDOW_MS,
     max: RATE_LIMIT_MAX,
+    skip: (req) => req.method === 'GET' && POLLING_PATHS.has(req.path),
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Troppe richieste, riprova più tardi' }
