@@ -299,6 +299,11 @@ app.post('/api/vpn/connect', async (req, res) => {
     const vpnLog = path.join(logger.LOG_DIR, `openvpn-${configName}.log`);
     let createdAuthFile = false;
 
+    // Prenota subito nome e porta di management: richieste concorrenti non
+    // riusano la stessa porta e una disconnessione durante l'avvio non viene annullata
+    const connection = { startedAt: Date.now(), mgmtPort };
+    activeConnections.set(configName, connection);
+
     try {
         // --cd prima di --config: i percorsi relativi (ca, cert, key...) sono risolti
         // rispetto alla cartella delle configurazioni
@@ -325,7 +330,6 @@ app.post('/api/vpn/connect', async (req, res) => {
             throw { message: readLogTail(vpnLog) };
         }
 
-        activeConnections.set(configName, { startedAt: Date.now(), mgmtPort });
         logger.info(`Connessione VPN avviata con ${configName} (management :${mgmtPort})`);
 
         res.json({ 
@@ -336,6 +340,7 @@ app.post('/api/vpn/connect', async (req, res) => {
     } catch (error) {
         const details = error.message || error.error || readLogTail(vpnLog) ||
             (error.stderr || error.stdout || '').trim() || `openvpn terminato con codice ${error.code}`;
+        if (activeConnections.get(configName) === connection) activeConnections.delete(configName);
         if (createdAuthFile) fs.rmSync(authFile, { force: true });
         logger.error(`Errore avvio connessione VPN (${configName}): ${details}`);
         res.status(500).json({ 
