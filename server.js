@@ -18,6 +18,16 @@ const PORT = process.env.PORT || 4000;
 // Configurazione OpenVPN
 const VPN_CONFIG_PATH = path.resolve(process.env.VPN_CONFIG_PATH || './vpn_configs');
 const VPN_MANAGEMENT_PORT = process.env.VPN_MANAGEMENT_PORT || 7505;
+const CONNECT_CHECK_DELAY_MS = parseInt(process.env.CONNECT_CHECK_DELAY_MS, 10) || 1500;
+const IS_WINDOWS = process.platform === 'win32';
+const WINDOWS_OPENVPN_BIN = 'C:\\Program Files\\OpenVPN\\bin\\openvpn.exe';
+const OPENVPN_BIN = process.env.OPENVPN_BIN ||
+    (IS_WINDOWS && fs.existsSync(WINDOWS_OPENVPN_BIN) ? WINDOWS_OPENVPN_BIN : 'openvpn');
+// --daemon non è supportato su Windows: lì OpenVPN gira come processo figlio del server
+const OPENVPN_DAEMON = process.env.OPENVPN_DAEMON
+    ? process.env.OPENVPN_DAEMON === 'true'
+    : !IS_WINDOWS;
+const STOP_TIMEOUT_MS = parseInt(process.env.STOP_TIMEOUT_MS, 10) || 5000;
 
 // Configurazione autenticazione
 const AUTH_ENABLED = process.env.AUTH_ENABLED !== 'false';
@@ -90,6 +100,15 @@ function sanitizeUploadName(originalName) {
     return (stem || `config-${Date.now()}`) + ext;
 }
 
+// Ultime righe del log di un'istanza OpenVPN (in modalità --daemon gli errori finiscono solo lì)
+function readLogTail(file, lines = 15) {
+    try {
+        return fs.readFileSync(file, 'utf8').trim().split('\n').slice(-lines).join('\n');
+    } catch {
+        return '';
+    }
+}
+
 // Utility per eseguire comandi shell
 function executeCommand(command, args = []) {
     return new Promise((resolve, reject) => {
@@ -117,6 +136,61 @@ function executeCommand(command, args = []) {
             reject({ success: false, error: error.message });
         });
     });
+}
+
+// Avvia OpenVPN in primo piano come processo figlio; risolve se è ancora attivo
+// dopo CONNECT_CHECK_DELAY_MS, altrimenti rifiuta con codice e output
+function startForeground(args) {
+    const proc = spawn(OPENVPN_BIN, args, { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+    let output = '';
+    const collect = (data) => { output = (output + data.toString()).slice(-5000); };
+    proc.stdout.on('data', collect);
+    proc.stderr.on('data', collect);
+
+    const ready = new Promise((resolve, reject) => {
+        const timer = setTimeout(resolve, CONNECT_CHECK_DELAY_MS);
+        proc.once('error', (error) => {
+            clearTimeout(timer);
+            reject({ error: `${OPENVPN_BIN}: ${error.message}` });
+        });
+        proc.once('exit', (code) => {
+            clearTimeout(timer);
+            reject({ stdout: output, code });
+        });
+    });
+    return { proc, ready };
+}
+
+function removeTempAuth(conn) {
+    if (!conn.tempAuthFile) return;
+    try {
+        fs.rmSync(conn.tempAuthFile, { force: true });
+    } catch (error) {
+        logger.warn(`Impossibile rimuovere ${conn.tempAuthFile}: ${error.message}`);
+    }
+}
+
+function forceKill(proc) {
+    if (IS_WINDOWS) {
+        return executeCommand('taskkill', ['/PID', String(proc.pid), '/T', '/F']).catch(() => {});
+    }
+    proc.kill('SIGKILL');
+}
+
+// Arresta un'istanza in primo piano: SIGTERM via management (rimuove rotte e
+// interfaccia), poi terminazione forzata se non esce entro STOP_TIMEOUT_MS
+async function stopForeground(proc, mgmtPort) {
+    if (proc.exitCode !== null || proc.signalCode !== null) return;
+    const exited = new Promise(resolve => proc.once('exit', () => resolve('exit')));
+    try {
+        await queryManagement('signal SIGTERM', mgmtPort);
+    } catch {
+        if (IS_WINDOWS) await forceKill(proc); else proc.kill('SIGTERM');
+    }
+    let timer;
+    const timeout = new Promise(resolve => { timer = setTimeout(resolve, STOP_TIMEOUT_MS, 'timeout'); });
+    if (await Promise.race([exited, timeout]) === 'timeout') await forceKill(proc);
+    clearTimeout(timer);
 }
 
 // Interroga l'interfaccia di management di OpenVPN
@@ -238,6 +312,15 @@ app.get('/api/auth/status', (req, res) => {
 
 // Stato del servizio OpenVPN
 app.get('/api/vpn/status', async (req, res) => {
+    if (IS_WINDOWS) {
+        try {
+            const { stdout } = await executeCommand('tasklist', ['/FI', 'IMAGENAME eq openvpn.exe', '/NH']);
+            const running = activeConnections.size > 0 || /openvpn\.exe/i.test(stdout);
+            return res.json({ status: running ? 'active' : 'inactive', service: 'process' });
+        } catch (error) {
+            return res.json({ status: activeConnections.size > 0 ? 'active' : 'unknown', error: error.error });
+        }
+    }
     try {
         const { stdout } = await executeCommand('systemctl', ['is-active', 'openvpn']);
         res.json({ 
@@ -301,25 +384,55 @@ app.post('/api/vpn/connect', async (req, res) => {
     }
 
     const mgmtPort = nextMgmtPort();
+    const authFile = path.join(VPN_CONFIG_PATH, `${configName}.auth`);
+    const vpnLog = path.join(logger.LOG_DIR, `openvpn-${configName}.log`);
+
+    // Prenota subito nome e porta di management: richieste concorrenti non
+    // riusano la stessa porta e una disconnessione durante l'avvio non viene annullata
+    const connection = { startedAt: Date.now(), mgmtPort };
+    activeConnections.set(configName, connection);
 
     try {
-        // Comando per avviare OpenVPN (con interfaccia di management per le statistiche)
+        // --cd prima di --config: i percorsi relativi (ca, cert, key...) sono risolti
+        // rispetto alla cartella delle configurazioni
         const args = [
+            '--cd', VPN_CONFIG_PATH,
             '--config', configPath,
-            '--daemon',
+            ...(OPENVPN_DAEMON ? ['--daemon'] : []),
+            '--log', vpnLog,
             '--management', '127.0.0.1', String(mgmtPort)
         ];
-        
+
+        fs.rmSync(vpnLog, { force: true });
         if (username && password) {
-            // Crea file temporaneo per le credenziali
-            const authFile = path.join(VPN_CONFIG_PATH, `${configName}.auth`);
-            fs.writeFileSync(authFile, `${username}\n${password}\n`);
+            // File temporaneo separato: non sovrascrive le credenziali salvate in <config>.auth
+            connection.tempAuthFile = path.join(VPN_CONFIG_PATH, `${configName}.tmp-auth`);
+            fs.writeFileSync(connection.tempAuthFile, `${username}\n${password}\n`, { mode: 0o600 });
+            args.push('--auth-user-pass', connection.tempAuthFile);
+        } else if (fs.existsSync(authFile)) {
+            // Credenziali salvate accanto alla configurazione (<config>.auth)
             args.push('--auth-user-pass', authFile);
         }
 
-        await executeCommand('openvpn', args);
+        if (OPENVPN_DAEMON) {
+            await executeCommand(OPENVPN_BIN, args);
+            // Il processo in background può terminare subito (es. permessi TUN, credenziali)
+            await new Promise(resolve => setTimeout(resolve, CONNECT_CHECK_DELAY_MS));
+        } else {
+            const { proc, ready } = startForeground(args);
+            connection.proc = proc;
+            proc.once('exit', (code) => {
+                if (activeConnections.get(configName) !== connection) return;
+                activeConnections.delete(configName);
+                removeTempAuth(connection);
+                logger.warn(`Connessione VPN ${configName} terminata (codice ${code})`);
+            });
+            await ready;
+        }
+        if (/Exiting due to fatal error|SIGTERM\[soft,auth-failure\]/.test(readLogTail(vpnLog, 50))) {
+            throw { message: readLogTail(vpnLog) };
+        }
 
-        activeConnections.set(configName, { startedAt: Date.now(), mgmtPort });
         logger.info(`Connessione VPN avviata con ${configName} (management :${mgmtPort})`);
 
         res.json({ 
@@ -328,10 +441,15 @@ app.post('/api/vpn/connect', async (req, res) => {
             config: configName
         });
     } catch (error) {
-        logger.error(`Errore avvio connessione VPN (${configName}): ${error.message}`);
+        const details = error.message || error.error || readLogTail(vpnLog) ||
+            (error.stderr || error.stdout || '').trim() || `openvpn terminato con codice ${error.code}`;
+        if (activeConnections.get(configName) === connection) activeConnections.delete(configName);
+        if (connection.proc) await stopForeground(connection.proc, mgmtPort);
+        removeTempAuth(connection);
+        logger.error(`Errore avvio connessione VPN (${configName}): ${details}`);
         res.status(500).json({ 
             error: 'Errore durante l\'avvio della connessione VPN',
-            details: error.message
+            details
         });
     }
 });
@@ -349,13 +467,15 @@ app.post('/api/vpn/disconnect', async (req, res) => {
             if (!activeConnections.has(configName)) {
                 return res.status(404).json({ error: 'Nessuna connessione attiva per questa configurazione' });
             }
-            await executeCommand('pkill', ['-f', configName]);
+            const conn = activeConnections.get(configName);
             activeConnections.delete(configName);
-
-            const authFile = path.join(VPN_CONFIG_PATH, `${configName}.auth`);
-            if (fs.existsSync(authFile)) {
-                fs.unlinkSync(authFile);
+            if (conn.proc) {
+                await stopForeground(conn.proc, conn.mgmtPort);
+            } else {
+                await executeCommand('pkill', ['-f', configName]);
             }
+
+            removeTempAuth(conn);
 
             logger.info(`Connessione VPN terminata: ${configName}`);
             return res.json({
@@ -365,17 +485,16 @@ app.post('/api/vpn/disconnect', async (req, res) => {
         }
 
         // Termina tutti i processi OpenVPN
-        await executeCommand('pkill', ['-f', 'openvpn']);
-        
-        // Rimuovi file di autenticazione temporanei
-        const authFiles = fs.readdirSync(VPN_CONFIG_PATH)
-            .filter(file => file.endsWith('.auth'));
-        
-        authFiles.forEach(file => {
-            fs.unlinkSync(path.join(VPN_CONFIG_PATH, file));
-        });
-
+        const conns = [...activeConnections.values()];
         activeConnections.clear();
+        await Promise.all(conns.filter(c => c.proc).map(c => stopForeground(c.proc, c.mgmtPort)));
+        if (OPENVPN_DAEMON) {
+            await executeCommand('pkill', ['-f', 'openvpn']);
+        }
+        
+        // Rimuovi i file di autenticazione temporanei (non quelli salvati dall'utente)
+        conns.forEach(removeTempAuth);
+
         logger.info('Connessioni VPN terminate');
 
         res.json({ 
@@ -383,10 +502,12 @@ app.post('/api/vpn/disconnect', async (req, res) => {
             message: 'Connessioni VPN terminate'
         });
     } catch (error) {
-        logger.error(`Errore disconnessione VPN: ${error.message}`);
+        const details = error.message || error.error || (error.stderr || '').trim() ||
+            `codice ${error.code}`;
+        logger.error(`Errore disconnessione VPN: ${details}`);
         res.status(500).json({ 
             error: 'Errore durante la disconnessione VPN',
-            details: error.message
+            details
         });
     }
 });
@@ -395,6 +516,13 @@ app.post('/api/vpn/disconnect', async (req, res) => {
 app.get('/api/vpn/logs', async (req, res) => {
     try {
         const logPath = '/var/log/openvpn.log';
+        if (IS_WINDOWS) {
+            const vpnLogs = fs.readdirSync(logger.LOG_DIR)
+                .filter(file => /^openvpn-.+\.log$/.test(file))
+                .map(file => `== ${file} ==\n${readLogTail(path.join(logger.LOG_DIR, file), 50)}`);
+            if (vpnLogs.length) return res.json({ logs: vpnLogs.join('\n\n').slice(-5000) });
+            throw new Error('Nessun log OpenVPN');
+        }
         if (fs.existsSync(logPath)) {
             const logs = fs.readFileSync(logPath, 'utf8');
             res.json({ logs: logs.slice(-5000) }); // Ultimi 5000 caratteri
