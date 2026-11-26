@@ -84,6 +84,22 @@ function isValidConfigName(name) {
     return resolved.startsWith(VPN_CONFIG_PATH + path.sep);
 }
 
+// Normalizza il nome di un file caricato: accenti, spazi e caratteri
+// speciali diventano "_", l'estensione viene resa minuscola
+function sanitizeUploadName(originalName) {
+    const decoded = Buffer.from(String(originalName), 'latin1').toString('utf8');
+    const base = path.basename(decoded.includes('\uFFFD') ? String(originalName) : decoded);
+    if (isValidConfigName(base)) return base;
+    const ext = path.extname(base).toLowerCase();
+    if (!path.basename(base, path.extname(base))) return '';
+    const stem = path.basename(base, path.extname(base))
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9._-]+/g, '_')
+        .replace(/\.{2,}/g, '.')
+        .replace(/^[._]+|[._]+$/g, '');
+    return (stem || `config-${Date.now()}`) + ext;
+}
+
 // Ultime righe del log di un'istanza OpenVPN (in modalità --daemon gli errori finiscono solo lì)
 function readLogTail(file, lines = 15) {
     try {
@@ -577,8 +593,8 @@ app.post('/api/vpn/upload', upload.single('config'), (req, res) => {
         return res.status(400).json({ error: 'Nessun file ricevuto' });
     }
 
-    const name = req.file.originalname;
-    if (name !== path.basename(name) || !isValidConfigName(name)) {
+    const name = sanitizeUploadName(req.file.originalname);
+    if (!isValidConfigName(name)) {
         return res.status(400).json({
             error: 'Nome file non valido (consentiti solo file .ovpn o .conf)'
         });

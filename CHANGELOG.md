@@ -27,6 +27,7 @@ e questo progetto aderisce al [Semantic Versioning 2.0.0](https://semver.org/lan
 
 ### Corretto
 
+- Upload configurazioni: i nomi file con spazi, parentesi, accenti o estensione maiuscola (es. `My VPN (1).OVPN`) vengono normalizzati invece di essere rifiutati
 - Avvio connessione VPN: l'errore restituito ora include il motivo reale (output/log di OpenVPN) invece di `undefined`; il log di ogni istanza è scritto in `logs/openvpn-<config>.log`
 - I percorsi relativi nei file `.ovpn` (`ca`, `cert`, `key`, ...) sono risolti rispetto alla cartella delle configurazioni (`--cd`)
 - Supporto Windows: OpenVPN avviato come processo figlio senza `--daemon`, arresto via management o `taskkill`, stato con `tasklist`; eseguibile configurabile con `OPENVPN_BIN` (`OPENVPN_DAEMON` per forzare la modalità)
