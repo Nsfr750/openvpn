@@ -2,6 +2,8 @@
 
 Applicazione Node.js per la gestione e il controllo di connessioni OpenVPN tramite interfaccia web.
 
+Versione corrente: **1.1.0** — novità e correzioni in [CHANGELOG.md](CHANGELOG.md).
+
 ## Caratteristiche
 
 - 🌐 Interfaccia web moderna e responsive
@@ -94,7 +96,7 @@ La versione dell'app è definita solo in `version.js` e viene letta da server (l
 `GET /api/version`, documentazione API e footer delle pagine web. Per cambiarla:
 
 ```bash
-npm run set-version -- 1.1.0
+npm run set-version -- 1.2.0
 ```
 
 Lo script aggiorna anche `package.json`, `package-lock.json`, l'`ARG APP_VERSION` del `Dockerfile`
