@@ -37,7 +37,11 @@ Questa applicazione gestisce connessioni VPN e richiede attenzione particolare:
 - **File `.env`**: contiene variabili d'ambiente potenzialmente sensibili. Usa sempre `.env.example` come modello senza valori reali.
 - **Interfaccia di management OpenVPN**: la porta di management (default `7505`) deve essere raggiungibile solo da localhost. Non esporla su reti pubbliche.
 - **Permessi di amministratore**: l'applicazione esegue processi OpenVPN con privilegi elevati. Eseguila solo in ambienti fidati e non esporla su reti non protette senza autenticazione.
-- **Nessuna autenticazione integrata**: l'interfaccia web non include un sistema di login. Proteggila con un reverse proxy autenticato o limita l'accesso a `localhost` se usata in produzione.
+- **Autenticazione**: l'interfaccia web e le API richiedono il login (`AUTH_USERNAME`/`AUTH_PASSWORD`). Imposta una password robusta e un `SESSION_SECRET` casuale; se `AUTH_PASSWORD` è vuota viene generata una password casuale a ogni avvio. Non disabilitare `AUTH_ENABLED` se il server è raggiungibile da altri host, e usa HTTPS (`HTTPS_ENABLED`) fuori da `localhost`.
+- **Rate limiting**: le API sono limitate (`RATE_LIMIT_MAX`) e il login ha un limite più stretto (`LOGIN_RATE_LIMIT_MAX`). `GET /api/vpn/status` e `GET /api/vpn/stats` sono esclusi perché interrogati di continuo dall'interfaccia, ma restano accessibili solo dopo il login.
+- **File di credenziali**: `<config>.auth` contiene username e password VPN in chiaro; le credenziali del form vengono scritte in `<config>.tmp-auth` (permessi `600`) e cancellate alla disconnessione. Entrambi sono esclusi da git (`*.auth`, `*.tmp-auth`): se sono stati pubblicati per errore, rimuovili dalla history e cambia la password.
+- **Upload**: sono accettati solo `.ovpn`/`.conf` fino a 512 KB; il nome viene normalizzato e validato contro il path traversal. Un file `.ovpn` può contenere direttive che eseguono script (`up`, `down`, `script-security`): carica solo configurazioni di fonti fidate.
+- **Windows**: il server va avviato come amministratore per creare l'interfaccia TAP e aggiungere le rotte; tutti i processi OpenVPN avviati ereditano questi privilegi.
 
 ---
 

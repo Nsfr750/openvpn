@@ -28,6 +28,7 @@ e questo progetto aderisce al [Semantic Versioning 2.0.0](https://semver.org/lan
 
 ### Corretto
 
+- Grafico banda mai visibile: il polling ogni 2 s di `/api/vpn/stats` superava il rate limit (100 richieste/15 min) e riceveva `429`. `GET /api/vpn/status` e `GET /api/vpn/stats` sono ora esclusi dal rate limit (restano protetti dal login)
 - Le statistiche di traffico erano sempre vuote: il comando di management inviato era `loadstats` invece di `load-stats`
 - Avvio connessione VPN: l'errore restituito ora include il motivo reale (output/log di OpenVPN) invece di `undefined`; il log di ogni istanza è scritto in `logs/openvpn-<config>.log`
 - I percorsi relativi nei file `.ovpn` (`ca`, `cert`, `key`, ...) sono risolti rispetto alla cartella delle configurazioni (`--cd`)

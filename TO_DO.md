@@ -6,6 +6,14 @@ Lista delle funzionalità e miglioramenti pianificati per OpenVPN Manager.
 
 - [ ] Nessuna attività in corso
 
+## Pianificato
+
+- [ ] Segnalare come errore il fallimento dell'aggiunta delle rotte (`route addition failed`), invece di mostrare la VPN come connessa
+- [ ] Avviso nell'interfaccia quando il server non gira con privilegi di amministratore
+- [ ] Grafico banda separato per ogni connessione e scelta dell'intervallo (2 min / 10 min / 1 h)
+- [ ] Esportare lo storico del traffico (CSV)
+- [ ] Gestire da interfaccia il file `<config>.auth` (salvataggio/rimozione credenziali)
+
 ## Completato
 
 - [x] Modalità dark/light selezionabile
@@ -27,3 +35,9 @@ Lista delle funzionalità e miglioramenti pianificati per OpenVPN Manager.
 - [x] Gestione configurazioni multiple
 - [x] Visualizzazione log di sistema
 - [x] Connessione/disconnessione con un click
+- [x] Upload di file con nomi contenenti spazi, accenti, parentesi o estensione maiuscola (normalizzazione del nome)
+- [x] Motivo reale dell'errore di connessione nell'interfaccia e log per istanza (`logs/openvpn-<config>.log`)
+- [x] Percorsi relativi del `.ovpn` (`ca`, `cert`, `key`) risolti da `vpn_configs/`
+- [x] Supporto Windows (OpenVPN Community, niente `--daemon`, `taskkill`, `OPENVPN_BIN`)
+- [x] Credenziali del form in file temporaneo `<config>.tmp-auth`, senza toccare `<config>.auth`
+- [x] Grafico in tempo reale dell'utilizzo di banda
