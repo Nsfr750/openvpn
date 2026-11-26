@@ -145,6 +145,10 @@ function startForeground(args) {
     return { proc, ready };
 }
 
+function removeTempAuth(conn) {
+    if (conn.tempAuthFile) fs.rmSync(conn.tempAuthFile, { force: true });
+}
+
 function forceKill(proc) {
     if (IS_WINDOWS) {
         return executeCommand('taskkill', ['/PID', String(proc.pid), '/T', '/F']).catch(() => {});
@@ -361,7 +365,6 @@ app.post('/api/vpn/connect', async (req, res) => {
     const mgmtPort = nextMgmtPort();
     const authFile = path.join(VPN_CONFIG_PATH, `${configName}.auth`);
     const vpnLog = path.join(logger.LOG_DIR, `openvpn-${configName}.log`);
-    let createdAuthFile = false;
 
     // Prenota subito nome e porta di management: richieste concorrenti non
     // riusano la stessa porta e una disconnessione durante l'avvio non viene annullata
@@ -381,10 +384,10 @@ app.post('/api/vpn/connect', async (req, res) => {
 
         fs.rmSync(vpnLog, { force: true });
         if (username && password) {
-            fs.writeFileSync(authFile, `${username}\n${password}\n`, { mode: 0o600 });
-            createdAuthFile = true;
-            connection.createdAuthFile = true;
-            args.push('--auth-user-pass', authFile);
+            // File temporaneo separato: non sovrascrive le credenziali salvate in <config>.auth
+            connection.tempAuthFile = path.join(VPN_CONFIG_PATH, `${configName}.tmp-auth`);
+            fs.writeFileSync(connection.tempAuthFile, `${username}\n${password}\n`, { mode: 0o600 });
+            args.push('--auth-user-pass', connection.tempAuthFile);
         } else if (fs.existsSync(authFile)) {
             // Credenziali salvate accanto alla configurazione (<config>.auth)
             args.push('--auth-user-pass', authFile);
@@ -400,6 +403,7 @@ app.post('/api/vpn/connect', async (req, res) => {
             proc.once('exit', (code) => {
                 if (activeConnections.get(configName) !== connection) return;
                 activeConnections.delete(configName);
+                removeTempAuth(connection);
                 logger.warn(`Connessione VPN ${configName} terminata (codice ${code})`);
             });
             await ready;
@@ -420,7 +424,7 @@ app.post('/api/vpn/connect', async (req, res) => {
             (error.stderr || error.stdout || '').trim() || `openvpn terminato con codice ${error.code}`;
         if (activeConnections.get(configName) === connection) activeConnections.delete(configName);
         if (connection.proc) await stopForeground(connection.proc, mgmtPort);
-        if (createdAuthFile) fs.rmSync(authFile, { force: true });
+        removeTempAuth(connection);
         logger.error(`Errore avvio connessione VPN (${configName}): ${details}`);
         res.status(500).json({ 
             error: 'Errore durante l\'avvio della connessione VPN',
@@ -450,9 +454,7 @@ app.post('/api/vpn/disconnect', async (req, res) => {
                 await executeCommand('pkill', ['-f', configName]);
             }
 
-            if (conn.createdAuthFile) {
-                fs.rmSync(path.join(VPN_CONFIG_PATH, `${configName}.auth`), { force: true });
-            }
+            removeTempAuth(conn);
 
             logger.info(`Connessione VPN terminata: ${configName}`);
             return res.json({
@@ -462,7 +464,6 @@ app.post('/api/vpn/disconnect', async (req, res) => {
         }
 
         // Termina tutti i processi OpenVPN
-        const names = [...activeConnections.keys()];
         const conns = [...activeConnections.values()];
         activeConnections.clear();
         await Promise.all(conns.filter(c => c.proc).map(c => stopForeground(c.proc, c.mgmtPort)));
@@ -471,9 +472,7 @@ app.post('/api/vpn/disconnect', async (req, res) => {
         }
         
         // Rimuovi i file di autenticazione temporanei (non quelli salvati dall'utente)
-        for (const [name, c] of conns.map((c, i) => [names[i], c])) {
-            if (c.createdAuthFile) fs.rmSync(path.join(VPN_CONFIG_PATH, `${name}.auth`), { force: true });
-        }
+        conns.forEach(removeTempAuth);
 
         logger.info('Connessioni VPN terminate');
 

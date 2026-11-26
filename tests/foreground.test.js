@@ -45,6 +45,27 @@ describe('OpenVPN in primo piano (Windows)', () => {
         expect(after.body.stats.count).toBe(0);
     });
 
+    test('le credenziali del form non sovrascrivono quelle salvate e vengono rimosse', async () => {
+        const saved = path.join(TEST_CONFIG_DIR, 'ok.ovpn.auth');
+        const temp = path.join(TEST_CONFIG_DIR, 'ok.ovpn.tmp-auth');
+        const res = await request(app).post('/api/vpn/connect')
+            .send({ configName: 'ok.ovpn', username: 'form', password: 'pw' });
+        expect(res.status).toBe(200);
+        expect(fs.readFileSync(saved, 'utf8')).toBe('u\np\n');
+        expect(fs.readFileSync(temp, 'utf8')).toBe('form\npw\n');
+
+        // OpenVPN termina da solo dopo l'avvio: connessione e credenziali temporanee rimosse
+        const args = JSON.parse(fs.readFileSync(path.join(TEST_CONFIG_DIR, 'ok.ovpn.args'), 'utf8'));
+        expect(args[args.indexOf('--auth-user-pass') + 1]).toBe(temp);
+        process.kill(Number(fs.readFileSync(path.join(TEST_CONFIG_DIR, 'ok.ovpn.pid'), 'utf8')), 'SIGTERM');
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        expect(fs.existsSync(temp)).toBe(false);
+        expect(fs.existsSync(saved)).toBe(true);
+        const stats = await request(app).get('/api/vpn/stats');
+        expect(stats.body.stats.count).toBe(0);
+    });
+
     test('se OpenVPN esce subito restituisce il suo output', async () => {
         const res = await request(app).post('/api/vpn/connect').send({ configName: 'bad.ovpn' });
         expect(res.status).toBe(500);

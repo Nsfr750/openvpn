@@ -13,5 +13,6 @@ if (fs.readFileSync(config, 'utf8').includes('fail')) {
     process.exit(1);
 }
 fs.writeFileSync(`${config}.args`, JSON.stringify(args));
+fs.writeFileSync(`${config}.pid`, String(process.pid));
 process.on('SIGTERM', () => process.exit(0));
 setInterval(() => {}, 1000);

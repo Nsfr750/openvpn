@@ -120,7 +120,7 @@ describe('Validazione nome configurazione (path traversal)', () => {
         expect(res.status).toBe(500);
         expect(typeof res.body.details).toBe('string');
         expect(res.body.details.length).toBeGreaterThan(0);
-        expect(fs.existsSync(path.join(TEST_CONFIG_DIR, 'broken.ovpn.auth'))).toBe(false);
+        expect(fs.existsSync(path.join(TEST_CONFIG_DIR, 'broken.ovpn.tmp-auth'))).toBe(false);
     });
 
     test('restituisce 404 per un nome valido ma inesistente', async () => {
