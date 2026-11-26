@@ -7,6 +7,8 @@ e questo progetto aderisce al [Semantic Versioning 2.0.0](https://semver.org/lan
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-26
+
 ### Aggiunto
 
 - File di versione unico `version.js`, letto da server, OpenAPI, endpoint pubblico `GET /api/version` e footer di `index.html`/`login.html` (`public/app-version.js`). Script `npm run set-version -- <x.y.z>` per aggiornare anche `package.json`, `package-lock.json`, `Dockerfile` e `docker-compose.yml`
@@ -66,4 +68,6 @@ e questo progetto aderisce al [Semantic Versioning 2.0.0](https://semver.org/lan
 
 - Directory `vpn_configs/` e file `.env` esclusi dal controllo di versione tramite `.gitignore`
 
+[Unreleased]: https://github.com/Nsfr750/openvpn/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/Nsfr750/openvpn/releases/tag/v1.1.0
 [1.0.0]: https://github.com/Nsfr750/openvpn-manager/releases/tag/v1.0.0

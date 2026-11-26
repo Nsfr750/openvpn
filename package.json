@@ -1,6 +1,6 @@
 {
   "name": "openvpn-manager",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Applicazione Node.js per la gestione e il collegamento con OpenVPN",
   "main": "server.js",
   "scripts": {

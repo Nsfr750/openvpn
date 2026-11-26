@@ -41,3 +41,7 @@ Lista delle funzionalità e miglioramenti pianificati per OpenVPN Manager.
 - [x] Supporto Windows (OpenVPN Community, niente `--daemon`, `taskkill`, `OPENVPN_BIN`)
 - [x] Credenziali del form in file temporaneo `<config>.tmp-auth`, senza toccare `<config>.auth`
 - [x] Grafico in tempo reale dell'utilizzo di banda
+- [x] Tasto Mostra/Nascondi grafico banda, con grafico visibile subito dopo la connessione
+- [x] `--explicit-exit-notify` per i profili UDP e chiusura pulita delle connessioni all'arresto del server
+- [x] File di versione unico `version.js`, endpoint `/api/version`, script `npm run set-version` e healthcheck Docker
+- [x] Release 1.1.0
