@@ -305,6 +305,23 @@
             color: #333;
         }
 
+        .bandwidth-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 10px;
+            color: var(--text-secondary);
+        }
+
+        .bandwidth-legend .legend-down strong { color: #4CAF50; }
+        .bandwidth-legend .legend-up strong { color: #667eea; }
+
+        #bandwidth-chart {
+            display: block;
+            width: 100%;
+            height: 220px;
+        }
+
         .conn-item {
             display: flex;
             justify-content: space-between;
@@ -408,6 +425,15 @@
                 <div id="connections-list"></div>
             </div>
 
+            <div class="control-card" id="bandwidth-section" style="display: none; margin-bottom: 30px;">
+                <h3 data-i18n="bandwidthCardTitle">📈 Utilizzo Banda</h3>
+                <div class="bandwidth-legend">
+                    <span class="legend-down">↓ <span data-i18n="chartDownloadLabel">Download</span>: <strong id="rate-down">-</strong></span>
+                    <span class="legend-up">↑ <span data-i18n="chartUploadLabel">Upload</span>: <strong id="rate-up">-</strong></span>
+                </div>
+                <canvas id="bandwidth-chart"></canvas>
+            </div>
+
             <div class="control-card" id="logs-section" style="display: none;">
                 <h3 data-i18n="logsCardTitle">📋 Log di Sistema</h3>
                 <div class="logs-container" id="logs-content">
@@ -424,6 +450,10 @@
 
     <script src="/i18n.js"></script>
     <script>
+        const STATS_INTERVAL_ACTIVE_MS = 2000;
+        const STATS_INTERVAL_IDLE_MS = 30000;
+        const BANDWIDTH_POINTS = 60;
+
         class VPNManager {
             constructor() {
                 this.baseURL = '';
@@ -432,6 +462,8 @@
 
             init() {
                 this.lastStatus = null;
+                this.statsTimer = null;
+                this.bandwidth = { samples: [], last: null };
                 this.initPreferences();
                 this.bindEvents();
                 this.loadVPNStatus();
@@ -477,7 +509,10 @@
 
                 document.getElementById('theme-toggle').addEventListener('click', () => {
                     this.toggleTheme();
+                    this.drawBandwidthChart();
                 });
+
+                window.addEventListener('resize', () => this.drawBandwidthChart());
 
                 document.getElementById('lang-select').addEventListener('change', (e) => {
                     applyLanguage(e.target.value);
@@ -659,16 +694,128 @@
                 }
             }
 
+            // Con connessioni attive aggiorna ogni 2 s (grafico banda), altrimenti ogni 30 s
             async loadStats() {
+                clearTimeout(this.statsTimer);
+                let active = false;
                 try {
                     const data = await this.apiCall('/stats');
                     const stats = data.stats;
 
                     document.getElementById('conn-count').textContent = stats.count;
                     this.renderConnections(stats.connections || []);
+                    this.updateBandwidth(stats.connections || []);
+                    active = stats.count > 0;
                 } catch (error) {
                     // Le statistiche non sono critiche: fallimento silenzioso
                 }
+                clearTimeout(this.statsTimer);
+                this.statsTimer = setTimeout(() => this.loadStats(),
+                    active ? STATS_INTERVAL_ACTIVE_MS : STATS_INTERVAL_IDLE_MS);
+            }
+
+            // Calcola la velocità dai contatori cumulativi (somma di tutte le connessioni)
+            updateBandwidth(connections) {
+                const withData = connections.filter(c => c.bytesIn !== null);
+                const section = document.getElementById('bandwidth-section');
+                if (!withData.length) {
+                    section.style.display = 'none';
+                    this.bandwidth = { samples: [], last: null };
+                    return;
+                }
+                section.style.display = 'block';
+
+                const current = {
+                    time: Date.now(),
+                    bytesIn: withData.reduce((sum, c) => sum + c.bytesIn, 0),
+                    bytesOut: withData.reduce((sum, c) => sum + c.bytesOut, 0),
+                    configs: withData.map(c => c.config).sort().join('|')
+                };
+                const { last, samples } = this.bandwidth;
+                // Se cambia l'insieme delle connessioni i contatori non sono confrontabili
+                if (last && last.configs === current.configs &&
+                    current.bytesIn >= last.bytesIn && current.bytesOut >= last.bytesOut) {
+                    const seconds = (current.time - last.time) / 1000;
+                    if (seconds > 0) {
+                        samples.push({
+                            down: (current.bytesIn - last.bytesIn) / seconds,
+                            up: (current.bytesOut - last.bytesOut) / seconds
+                        });
+                        if (samples.length > BANDWIDTH_POINTS) samples.shift();
+                    }
+                }
+                this.bandwidth.last = current;
+
+                const latest = samples[samples.length - 1];
+                document.getElementById('rate-down').textContent = latest ? this.formatRate(latest.down) : '-';
+                document.getElementById('rate-up').textContent = latest ? this.formatRate(latest.up) : '-';
+                this.drawBandwidthChart();
+            }
+
+            drawBandwidthChart() {
+                const canvas = document.getElementById('bandwidth-chart');
+                const width = canvas.clientWidth;
+                const height = canvas.clientHeight;
+                if (!width || !height) return;
+
+                const dpr = window.devicePixelRatio || 1;
+                canvas.width = width * dpr;
+                canvas.height = height * dpr;
+                const ctx = canvas.getContext('2d');
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                ctx.clearRect(0, 0, width, height);
+
+                const css = getComputedStyle(document.documentElement);
+                const gridColor = css.getPropertyValue('--card-border').trim();
+                const textColor = css.getPropertyValue('--text-secondary').trim();
+                const samples = this.bandwidth.samples;
+                const peak = Math.max(1024, ...samples.map(s => Math.max(s.down, s.up)));
+                const magnitude = Math.pow(10, Math.floor(Math.log10(peak)));
+                const max = [1, 2, 5, 10].find(m => m * magnitude >= peak) * magnitude;
+
+                const left = 80, right = 10, top = 10, bottom = 22;
+                const plotW = width - left - right;
+                const plotH = height - top - bottom;
+
+                ctx.font = '11px sans-serif';
+                ctx.lineWidth = 1;
+                ctx.strokeStyle = gridColor;
+                ctx.fillStyle = textColor;
+                for (let i = 0; i <= 4; i++) {
+                    const y = top + plotH - (plotH * i) / 4;
+                    ctx.beginPath();
+                    ctx.moveTo(left, y);
+                    ctx.lineTo(left + plotW, y);
+                    ctx.stroke();
+                    ctx.fillText(this.formatRate((max * i) / 4), 4, y + 4);
+                }
+                const spanSeconds = ((BANDWIDTH_POINTS - 1) * STATS_INTERVAL_ACTIVE_MS) / 1000;
+                ctx.fillText(`-${spanSeconds}s`, left, height - 6);
+                ctx.textAlign = 'right';
+                ctx.fillText('0s', left + plotW, height - 6);
+                ctx.textAlign = 'left';
+
+                const x = i => left + (plotW * (i + BANDWIDTH_POINTS - samples.length)) / (BANDWIDTH_POINTS - 1);
+                const y = v => top + plotH - (plotH * v) / max;
+                const drawSeries = (key, color, fill) => {
+                    if (samples.length < 2) return;
+                    ctx.beginPath();
+                    samples.forEach((s, i) => (i ? ctx.lineTo(x(i), y(s[key])) : ctx.moveTo(x(i), y(s[key]))));
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    ctx.lineTo(x(samples.length - 1), top + plotH);
+                    ctx.lineTo(x(0), top + plotH);
+                    ctx.closePath();
+                    ctx.fillStyle = fill;
+                    ctx.fill();
+                };
+                drawSeries('down', '#4CAF50', 'rgba(76, 175, 80, 0.15)');
+                drawSeries('up', '#667eea', 'rgba(102, 126, 234, 0.15)');
+            }
+
+            formatRate(bytesPerSecond) {
+                return `${this.formatBytes(Math.round(bytesPerSecond))}/s`;
             }
 
             renderConnections(connections) {
@@ -770,8 +917,7 @@
             setupAutoRefresh() {
                 setInterval(() => {
                     this.loadVPNStatus();
-                    this.loadStats();
-                }, 30000); // Aggiorna ogni 30 secondi
+                }, 30000); // Aggiorna ogni 30 secondi (le statistiche hanno un proprio timer)
             }
         }
 

@@ -542,7 +542,7 @@ app.get('/api/vpn/stats', async (req, res) => {
         };
 
         try {
-            const output = await queryManagement('loadstats', conn.mgmtPort);
+            const output = await queryManagement('load-stats', conn.mgmtPort);
             const match = output.match(/nclients=(\d+),bytesin=(\d+),bytesout=(\d+)/);
             if (match) {
                 entry.managementAvailable = true;
