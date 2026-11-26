@@ -111,6 +111,18 @@ describe('Validazione nome configurazione (path traversal)', () => {
         expect(res.status).toBe(400);
     });
 
+    test('in caso di errore restituisce il dettaglio e rimuove le credenziali', async () => {
+        const agent = await loginAgent();
+        fs.writeFileSync(path.join(TEST_CONFIG_DIR, 'broken.ovpn'), 'client\nopzione-inesistente 1\n');
+        const res = await agent
+            .post('/api/vpn/connect')
+            .send({ configName: 'broken.ovpn', username: 'u', password: 'p' });
+        expect(res.status).toBe(500);
+        expect(typeof res.body.details).toBe('string');
+        expect(res.body.details.length).toBeGreaterThan(0);
+        expect(fs.existsSync(path.join(TEST_CONFIG_DIR, 'broken.ovpn.auth'))).toBe(false);
+    });
+
     test('restituisce 404 per un nome valido ma inesistente', async () => {
         const agent = await loginAgent();
         const res = await agent

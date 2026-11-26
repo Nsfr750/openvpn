@@ -599,7 +599,8 @@
                         this.showMessage(result.message, 'success');
                         setTimeout(() => this.loadVPNStatus(), 2000);
                     } else {
-                        this.showMessage(result.error || t('msgConnectError'), 'error');
+                        const msg = result.error || t('msgConnectError');
+                        this.showMessage(result.details ? `${msg}: ${result.details}` : msg, 'error');
                     }
                 } catch (error) {
                     this.showMessage(`${t('errorPrefix')} ${error.message}`, 'error');
@@ -755,6 +756,7 @@
                 const messageDiv = document.createElement('div');
                 messageDiv.className = `message ${type}`;
                 messageDiv.textContent = message;
+                messageDiv.style.whiteSpace = 'pre-line';
                 
                 container.innerHTML = '';
                 container.appendChild(messageDiv);

@@ -18,6 +18,7 @@ const PORT = process.env.PORT || 4000;
 // Configurazione OpenVPN
 const VPN_CONFIG_PATH = path.resolve(process.env.VPN_CONFIG_PATH || './vpn_configs');
 const VPN_MANAGEMENT_PORT = process.env.VPN_MANAGEMENT_PORT || 7505;
+const CONNECT_CHECK_DELAY_MS = parseInt(process.env.CONNECT_CHECK_DELAY_MS, 10) || 1500;
 
 // Configurazione autenticazione
 const AUTH_ENABLED = process.env.AUTH_ENABLED !== 'false';
@@ -72,6 +73,15 @@ function isValidConfigName(name) {
     if (name.includes('..')) return false;
     const resolved = path.resolve(VPN_CONFIG_PATH, name);
     return resolved.startsWith(VPN_CONFIG_PATH + path.sep);
+}
+
+// Ultime righe del log di un'istanza OpenVPN (in modalità --daemon gli errori finiscono solo lì)
+function readLogTail(file, lines = 15) {
+    try {
+        return fs.readFileSync(file, 'utf8').trim().split('\n').slice(-lines).join('\n');
+    } catch {
+        return '';
+    }
 }
 
 // Utility per eseguire comandi shell
@@ -285,23 +295,33 @@ app.post('/api/vpn/connect', async (req, res) => {
     }
 
     const mgmtPort = nextMgmtPort();
+    const authFile = path.join(VPN_CONFIG_PATH, `${configName}.auth`);
+    const vpnLog = path.join(logger.LOG_DIR, `openvpn-${configName}.log`);
 
     try {
-        // Comando per avviare OpenVPN (con interfaccia di management per le statistiche)
+        // --cd prima di --config: i percorsi relativi (ca, cert, key...) sono risolti
+        // rispetto alla cartella delle configurazioni
         const args = [
+            '--cd', VPN_CONFIG_PATH,
             '--config', configPath,
             '--daemon',
+            '--log', vpnLog,
             '--management', '127.0.0.1', String(mgmtPort)
         ];
         
+        fs.rmSync(vpnLog, { force: true });
         if (username && password) {
-            // Crea file temporaneo per le credenziali
-            const authFile = path.join(VPN_CONFIG_PATH, `${configName}.auth`);
-            fs.writeFileSync(authFile, `${username}\n${password}\n`);
+            fs.writeFileSync(authFile, `${username}\n${password}\n`, { mode: 0o600 });
             args.push('--auth-user-pass', authFile);
         }
 
         await executeCommand('openvpn', args);
+
+        // Il processo in background può terminare subito (es. permessi TUN, credenziali)
+        await new Promise(resolve => setTimeout(resolve, CONNECT_CHECK_DELAY_MS));
+        if (/Exiting due to fatal error|SIGTERM\[soft,auth-failure\]/.test(readLogTail(vpnLog, 50))) {
+            throw { message: readLogTail(vpnLog) };
+        }
 
         activeConnections.set(configName, { startedAt: Date.now(), mgmtPort });
         logger.info(`Connessione VPN avviata con ${configName} (management :${mgmtPort})`);
@@ -312,10 +332,13 @@ app.post('/api/vpn/connect', async (req, res) => {
             config: configName
         });
     } catch (error) {
-        logger.error(`Errore avvio connessione VPN (${configName}): ${error.message}`);
+        const details = error.message || error.error || readLogTail(vpnLog) ||
+            (error.stderr || error.stdout || '').trim() || `openvpn terminato con codice ${error.code}`;
+        if (fs.existsSync(authFile)) fs.unlinkSync(authFile);
+        logger.error(`Errore avvio connessione VPN (${configName}): ${details}`);
         res.status(500).json({ 
             error: 'Errore durante l\'avvio della connessione VPN',
-            details: error.message
+            details
         });
     }
 });
