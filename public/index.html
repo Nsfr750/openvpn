@@ -416,6 +416,7 @@
                     </div>
                     <button id="refresh-btn" class="btn" data-i18n="refreshBtn">🔄 Aggiorna</button>
                     <button id="logs-btn" class="btn" data-i18n="logsBtnShow">📋 Mostra Log</button>
+                    <button id="bandwidth-btn" class="btn" data-i18n="bandwidthBtnHide">📈 Nascondi Grafico</button>
                     <button id="logout-btn" class="btn btn-danger" data-i18n="logoutBtn">🚪 Esci</button>
                 </div>
             </div>
@@ -453,6 +454,7 @@
         const STATS_INTERVAL_ACTIVE_MS = 2000;
         const STATS_INTERVAL_IDLE_MS = 30000;
         const BANDWIDTH_POINTS = 60;
+        const BANDWIDTH_MIN_POINTS = 16;
 
         class VPNManager {
             constructor() {
@@ -464,6 +466,8 @@
                 this.lastStatus = null;
                 this.statsTimer = null;
                 this.bandwidth = { samples: [], last: null };
+                this.bandwidthVisible = localStorage.getItem('bandwidthVisible') !== 'false';
+                this.updateBandwidthButton();
                 this.initPreferences();
                 this.bindEvents();
                 this.loadVPNStatus();
@@ -493,6 +497,10 @@
                     this.loadVPNStatus();
                     this.loadConfigs();
                     this.loadStats();
+                });
+
+                document.getElementById('bandwidth-btn').addEventListener('click', () => {
+                    this.toggleBandwidth();
                 });
 
                 document.getElementById('logs-btn').addEventListener('click', () => {
@@ -719,12 +727,14 @@
             updateBandwidth(connections) {
                 const withData = connections.filter(c => c.bytesIn !== null);
                 const section = document.getElementById('bandwidth-section');
+                section.style.display = this.bandwidthVisible ? 'block' : 'none';
                 if (!withData.length) {
-                    section.style.display = 'none';
                     this.bandwidth = { samples: [], last: null };
+                    document.getElementById('rate-down').textContent = '-';
+                    document.getElementById('rate-up').textContent = '-';
+                    this.drawBandwidthChart();
                     return;
                 }
-                section.style.display = 'block';
 
                 const current = {
                     time: Date.now(),
@@ -733,6 +743,11 @@
                     configs: withData.map(c => c.config).sort().join('|')
                 };
                 const { last, samples } = this.bandwidth;
+                // Primo campione: media dall'avvio, così il grafico parte subito
+                const uptime = Math.max(...withData.map(c => c.uptimeSeconds));
+                if (!last && uptime > 0) {
+                    samples.push({ down: current.bytesIn / uptime, up: current.bytesOut / uptime });
+                }
                 // Se cambia l'insieme delle connessioni i contatori non sono confrontabili
                 if (last && last.configs === current.configs &&
                     current.bytesIn >= last.bytesIn && current.bytesOut >= last.bytesOut) {
@@ -790,13 +805,15 @@
                     ctx.stroke();
                     ctx.fillText(this.formatRate((max * i) / 4), 4, y + 4);
                 }
-                const spanSeconds = ((BANDWIDTH_POINTS - 1) * STATS_INTERVAL_ACTIVE_MS) / 1000;
+                // La finestra parte da 30 s e si allarga fino a 2 min man mano che arrivano campioni
+                const points = Math.min(BANDWIDTH_POINTS, Math.max(samples.length, BANDWIDTH_MIN_POINTS));
+                const spanSeconds = ((points - 1) * STATS_INTERVAL_ACTIVE_MS) / 1000;
                 ctx.fillText(`-${spanSeconds}s`, left, height - 6);
                 ctx.textAlign = 'right';
                 ctx.fillText('0s', left + plotW, height - 6);
                 ctx.textAlign = 'left';
 
-                const x = i => left + (plotW * (i + BANDWIDTH_POINTS - samples.length)) / (BANDWIDTH_POINTS - 1);
+                const x = i => left + (plotW * (i + points - samples.length)) / (points - 1);
                 const y = v => top + plotH - (plotH * v) / max;
                 const drawSeries = (key, color, fill) => {
                     if (samples.length < 2) return;
@@ -813,6 +830,29 @@
                 };
                 drawSeries('down', '#4CAF50', 'rgba(76, 175, 80, 0.15)');
                 drawSeries('up', '#667eea', 'rgba(102, 126, 234, 0.15)');
+
+                if (!this.bandwidth.last) {
+                    ctx.textAlign = 'center';
+                    ctx.font = '14px sans-serif';
+                    ctx.fillStyle = textColor;
+                    ctx.fillText(t('noConnections'), left + plotW / 2, top + plotH / 2);
+                    ctx.textAlign = 'left';
+                }
+            }
+
+            toggleBandwidth() {
+                this.bandwidthVisible = !this.bandwidthVisible;
+                localStorage.setItem('bandwidthVisible', String(this.bandwidthVisible));
+                document.getElementById('bandwidth-section').style.display = this.bandwidthVisible ? 'block' : 'none';
+                this.updateBandwidthButton();
+                this.drawBandwidthChart();
+            }
+
+            updateBandwidthButton() {
+                const btn = document.getElementById('bandwidth-btn');
+                const key = this.bandwidthVisible ? 'bandwidthBtnHide' : 'bandwidthBtnShow';
+                btn.setAttribute('data-i18n', key);
+                btn.textContent = t(key);
             }
 
             formatRate(bytesPerSecond) {

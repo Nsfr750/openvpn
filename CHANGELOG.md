@@ -17,6 +17,7 @@ e questo progetto aderisce al [Semantic Versioning 2.0.0](https://semver.org/lan
 - Upload di file `.ovpn`/`.conf` tramite interfaccia web (endpoint `/api/vpn/upload`, multer)
 - Statistiche di connessione tramite interfaccia di management OpenVPN (endpoint `/api/vpn/stats`: banda, durata, client)
 - Grafico in tempo reale dell'utilizzo di banda (download/upload, ultimi 2 minuti) visibile con connessioni attive; le statistiche si aggiornano ogni 2 s
+- Tasto **Mostra/Nascondi Grafico** (scelta ricordata nel browser); con il grafico attivo la card resta visibile anche senza connessioni. Il primo punto mostra la media dall'avvio e la finestra parte da 30 s, allargandosi fino a 2 minuti
 - Notifiche toast nell'interfaccia quando lo stato della connessione cambia
 - Supporto HTTPS per il server web (`HTTPS_ENABLED`, `SSL_CERT_PATH`, `SSL_KEY_PATH`)
 - Logging su file con rotazione tramite winston (`logs/app.log`, `LOG_DIR`)

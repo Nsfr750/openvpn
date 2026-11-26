@@ -106,7 +106,8 @@ docker compose up -d --build
 
 Con almeno una connessione attiva compare la card **Utilizzo Banda**: un grafico di download e upload
 degli ultimi 2 minuti, aggiornato ogni 2 secondi, calcolato dai contatori di traffico dell'interfaccia
-di management di OpenVPN (somma di tutte le connessioni). Se lasci vuoti username e password,
+di management di OpenVPN (somma di tutte le connessioni). Il tasto **Mostra/Nascondi Grafico**
+nella card Informazioni Sistema mostra o nasconde la card (la scelta resta salvata nel browser). Se lasci vuoti username e password,
 viene usato il file `<config>.auth` salvato accanto alla configurazione.
 
 ### API Endpoints
