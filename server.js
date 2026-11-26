@@ -146,7 +146,12 @@ function startForeground(args) {
 }
 
 function removeTempAuth(conn) {
-    if (conn.tempAuthFile) fs.rmSync(conn.tempAuthFile, { force: true });
+    if (!conn.tempAuthFile) return;
+    try {
+        fs.rmSync(conn.tempAuthFile, { force: true });
+    } catch (error) {
+        logger.warn(`Impossibile rimuovere ${conn.tempAuthFile}: ${error.message}`);
+    }
 }
 
 function forceKill(proc) {
