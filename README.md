@@ -31,7 +31,9 @@ Applicazione Node.js per la gestione e il controllo di connessioni OpenVPN trami
 Su Windows `--daemon` non è supportato: OpenVPN viene avviato come processo figlio del server e terminato
 tramite interfaccia di management (o `taskkill`). L'eseguibile predefinito è
 `C:\Program Files\OpenVPN\bin\openvpn.exe`; per un percorso diverso impostare `OPENVPN_BIN`.
-Avviare il server da un terminale aperto come amministratore. Chiudendo il server si chiudono anche le connessioni.
+Avviare il server da un terminale aperto come amministratore. Chiudendo il server (Ctrl+C o chiusura della finestra)
+le connessioni vengono chiuse in modo pulito; con i profili UDP OpenVPN usa `--explicit-exit-notify` per avvisare
+il server della disconnessione, così la riconnessione successiva non trova la vecchia sessione ancora aperta.
 
 Senza privilegi di amministratore OpenVPN si autentica, ma Windows rifiuta l'aggiunta delle rotte
 (`route addition failed ... Accesso negato`) e il traffico non passa nel tunnel.

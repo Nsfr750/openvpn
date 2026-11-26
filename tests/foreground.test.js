@@ -18,6 +18,7 @@ beforeAll(() => {
     fs.writeFileSync(path.join(TEST_CONFIG_DIR, 'ok.ovpn'), 'client\nauth-user-pass\n');
     fs.writeFileSync(path.join(TEST_CONFIG_DIR, 'ok.ovpn.auth'), 'u\np\n');
     fs.writeFileSync(path.join(TEST_CONFIG_DIR, 'bad.ovpn'), 'fail\n');
+    fs.writeFileSync(path.join(TEST_CONFIG_DIR, 'tcp.ovpn'), 'client\nproto tcp-client\n');
 });
 
 afterAll(async () => {
@@ -32,6 +33,7 @@ describe('OpenVPN in primo piano (Windows)', () => {
 
         const args = JSON.parse(fs.readFileSync(path.join(TEST_CONFIG_DIR, 'ok.ovpn.args'), 'utf8'));
         expect(args).not.toContain('--daemon');
+        expect(args).toContain('--explicit-exit-notify');
         expect(args[args.indexOf('--auth-user-pass') + 1]).toBe(path.join(TEST_CONFIG_DIR, 'ok.ovpn.auth'));
 
         const stats = await request(app).get('/api/vpn/stats');
@@ -64,6 +66,27 @@ describe('OpenVPN in primo piano (Windows)', () => {
         expect(fs.existsSync(saved)).toBe(true);
         const stats = await request(app).get('/api/vpn/stats');
         expect(stats.body.stats.count).toBe(0);
+    });
+
+    test('profilo TCP: niente --explicit-exit-notify', async () => {
+        const res = await request(app).post('/api/vpn/connect').send({ configName: 'tcp.ovpn' });
+        expect(res.status).toBe(200);
+        const args = JSON.parse(fs.readFileSync(path.join(TEST_CONFIG_DIR, 'tcp.ovpn.args'), 'utf8'));
+        expect(args).not.toContain('--explicit-exit-notify');
+        await request(app).post('/api/vpn/disconnect').send({ configName: 'tcp.ovpn' }).expect(200);
+    });
+
+    test('stopAllConnections chiude tutte le connessioni', async () => {
+        await request(app).post('/api/vpn/connect').send({ configName: 'ok.ovpn' }).expect(200);
+        await request(app).post('/api/vpn/connect').send({ configName: 'tcp.ovpn' }).expect(200);
+        const pids = ['ok.ovpn', 'tcp.ovpn'].map(c =>
+            Number(fs.readFileSync(path.join(TEST_CONFIG_DIR, `${c}.pid`), 'utf8')));
+
+        await app.stopAllConnections();
+
+        const stats = await request(app).get('/api/vpn/stats');
+        expect(stats.body.stats.count).toBe(0);
+        pids.forEach(pid => expect(() => process.kill(pid, 0)).toThrow());
     });
 
     test('se OpenVPN esce subito restituisce il suo output', async () => {

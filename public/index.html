@@ -632,6 +632,7 @@
 
                     if (result.success) {
                         this.showMessage(result.message, 'success');
+                        this.loadStats();
                         setTimeout(() => this.loadVPNStatus(), 2000);
                     } else {
                         const msg = result.error || t('msgConnectError');
