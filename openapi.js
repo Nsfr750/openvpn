@@ -1,9 +1,11 @@
 // Specifica OpenAPI 3.0 per l'API di OpenVPN Manager
+const APP_VERSION = require('./version');
+
 module.exports = {
     openapi: '3.0.3',
     info: {
         title: 'OpenVPN Manager API',
-        version: '1.0.0',
+        version: APP_VERSION.version,
         description: 'API REST per la gestione e il controllo di connessioni OpenVPN',
         license: { name: 'GPLv3' },
         contact: { name: 'Nsfr750', url: 'https://github.com/Nsfr750' }
@@ -67,6 +69,29 @@ module.exports = {
                 tags: ['Autenticazione'],
                 summary: 'Termina la sessione corrente',
                 responses: { 200: { description: 'Logout effettuato' } }
+            }
+        },
+        '/api/version': {
+            get: {
+                tags: ['Autenticazione'],
+                summary: 'Nome e versione dell\'applicazione',
+                security: [],
+                responses: {
+                    200: {
+                        description: 'Versione corrente (da version.js)',
+                        content: {
+                            'application/json': {
+                                schema: {
+                                    type: 'object',
+                                    properties: {
+                                        name: { type: 'string', example: 'OpenVPN Manager' },
+                                        version: { type: 'string', example: '1.0.0' }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         },
         '/api/auth/status': {

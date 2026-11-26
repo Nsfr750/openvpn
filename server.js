@@ -10,6 +10,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const logger = require('./logger');
+const APP_VERSION = require('./version');
 require('dotenv').config();
 
 const app = express();
@@ -262,7 +263,8 @@ const loginLimiter = rateLimit({
 app.use('/api', apiLimiter);
 
 // Middleware di autenticazione: protegge API e interfaccia web
-const PUBLIC_PATHS = new Set(['/login', '/i18n.js', '/api/auth/login', '/api/auth/status']);
+const PUBLIC_PATHS = new Set(['/login', '/i18n.js', '/app-version.js',
+    '/api/auth/login', '/api/auth/status', '/api/version']);
 app.use((req, res, next) => {
     if (!AUTH_ENABLED) return next();
     if (PUBLIC_PATHS.has(req.path)) return next();
@@ -315,6 +317,10 @@ app.get('/api/auth/status', (req, res) => {
         authEnabled: AUTH_ENABLED,
         authenticated: !AUTH_ENABLED || !!(req.session && req.session.authenticated)
     });
+});
+
+app.get('/api/version', (req, res) => {
+    res.json({ name: APP_VERSION.name, version: APP_VERSION.version });
 });
 
 // API Routes
@@ -650,7 +656,7 @@ app.use((err, req, res, next) => {
 function startServer() {
     const scheme = HTTPS_ENABLED ? 'https' : 'http';
     const onListening = () => {
-        logger.info(`Server OpenVPN Manager in esecuzione sulla porta ${PORT} (${scheme.toUpperCase()})`);
+        logger.info(`Server ${APP_VERSION.name} v${APP_VERSION.version} in esecuzione sulla porta ${PORT} (${scheme.toUpperCase()})`);
         logger.info(`Interfaccia web disponibile su ${scheme}://localhost:${PORT}`);
         if (AUTH_ENABLED) {
             if (generatedPassword) {

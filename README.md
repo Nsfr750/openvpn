@@ -88,6 +88,18 @@ npm run dev
 
 L'applicazione sarà disponibile su `http://localhost:4000`
 
+### Versione
+
+La versione dell'app è definita solo in `version.js` e viene letta da server (log di avvio),
+`GET /api/version`, documentazione API e footer delle pagine web. Per cambiarla:
+
+```bash
+npm run set-version -- 1.1.0
+```
+
+Lo script aggiorna anche `package.json`, `package-lock.json`, l'`ARG APP_VERSION` del `Dockerfile`
+e il tag dell'immagine in `docker-compose.yml`; un test verifica che restino allineati.
+
 ### Docker
 
 Per eseguire l'applicazione in un container (richiede `/dev/net/tun` e la capability `NET_ADMIN`):
@@ -124,6 +136,7 @@ L'applicazione espone le seguenti API REST:
 - `POST /api/auth/login` - Login (sessione)
 - `POST /api/auth/logout` - Logout
 - `GET /api/auth/status` - Stato autenticazione
+- `GET /api/version` - Nome e versione dell'app (pubblico)
 
 #### Esempio di utilizzo API
 
