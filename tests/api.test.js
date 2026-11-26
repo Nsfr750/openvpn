@@ -167,6 +167,24 @@ describe('Upload configurazioni', () => {
         }
     });
 
+    test('non modifica nomi già validi', async () => {
+        const agent = await loginAgent();
+        const res = await agent
+            .post('/api/vpn/upload')
+            .attach('config', Buffer.from('client\n'), 'test_.ovpn');
+        expect(res.status).toBe(200);
+        expect(res.body.name).toBe('test_.ovpn');
+    });
+
+    test('accetta nomi composti solo da caratteri non latini', async () => {
+        const agent = await loginAgent();
+        const res = await agent
+            .post('/api/vpn/upload')
+            .attach('config', Buffer.from('client\n'), '東京.OVPN');
+        expect(res.status).toBe(200);
+        expect(res.body.name).toMatch(/^config-\d+\.ovpn$/);
+    });
+
     test('rifiuta upload duplicati', async () => {
         const agent = await loginAgent();
         const res = await agent

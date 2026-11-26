@@ -79,13 +79,15 @@ function isValidConfigName(name) {
 function sanitizeUploadName(originalName) {
     const decoded = Buffer.from(String(originalName), 'latin1').toString('utf8');
     const base = path.basename(decoded.includes('\uFFFD') ? String(originalName) : decoded);
+    if (isValidConfigName(base)) return base;
     const ext = path.extname(base).toLowerCase();
+    if (!path.basename(base, path.extname(base))) return '';
     const stem = path.basename(base, path.extname(base))
         .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         .replace(/[^a-zA-Z0-9._-]+/g, '_')
         .replace(/\.{2,}/g, '.')
         .replace(/^[._]+|[._]+$/g, '');
-    return stem ? stem + ext : '';
+    return (stem || `config-${Date.now()}`) + ext;
 }
 
 // Utility per eseguire comandi shell
