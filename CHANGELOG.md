@@ -29,6 +29,8 @@ e questo progetto aderisce al [Semantic Versioning 2.0.0](https://semver.org/lan
 
 - Avvio connessione VPN: l'errore restituito ora include il motivo reale (output/log di OpenVPN) invece di `undefined`; il log di ogni istanza è scritto in `logs/openvpn-<config>.log`
 - I percorsi relativi nei file `.ovpn` (`ca`, `cert`, `key`, ...) sono risolti rispetto alla cartella delle configurazioni (`--cd`)
+- Supporto Windows: OpenVPN avviato come processo figlio senza `--daemon`, arresto via management o `taskkill`, stato con `tasklist`; eseguibile configurabile con `OPENVPN_BIN` (`OPENVPN_DAEMON` per forzare la modalità)
+- Se il form non contiene credenziali viene usato il file `<config>.auth` salvato accanto alla configurazione; la disconnessione non lo cancella più
 - Un'istanza OpenVPN che termina subito dopo l'avvio (es. permessi TUN, credenziali errate) viene segnalata come errore invece che come connessione riuscita
 
 ### Sicurezza

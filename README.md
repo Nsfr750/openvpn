@@ -21,8 +21,15 @@ Applicazione Node.js per la gestione e il controllo di connessioni OpenVPN trami
 ## Requisiti
 
 - Node.js 14+
-- OpenVPN installato sul sistema
+- OpenVPN installato sul sistema (su Windows: [OpenVPN Community](https://openvpn.net/community-downloads/), non basta OpenVPN Connect)
 - Permessi di amministratore per gestire i processi VPN
+
+### Windows
+
+Su Windows `--daemon` non è supportato: OpenVPN viene avviato come processo figlio del server e terminato
+tramite interfaccia di management (o `taskkill`). L'eseguibile predefinito è
+`C:\Program Files\OpenVPN\bin\openvpn.exe`; per un percorso diverso impostare `OPENVPN_BIN`.
+Avviare il server da un terminale aperto come amministratore. Chiudendo il server si chiudono anche le connessioni.
 
 ## Installazione
 
@@ -156,6 +163,8 @@ openvpn-manager/
 - `SSL_CERT_PATH`: Percorso del certificato SSL
 - `SSL_KEY_PATH`: Percorso della chiave SSL
 - `LOG_DIR`: Directory dei log applicativi (default: ./logs)
+- `OPENVPN_BIN`: Eseguibile di OpenVPN (default: `openvpn`; su Windows `C:\Program Files\OpenVPN\bin\openvpn.exe` se presente)
+- `OPENVPN_DAEMON`: Avvia OpenVPN con `--daemon` (default: true, false su Windows)
 
 ### Configurazioni VPN
 
@@ -164,7 +173,7 @@ I file di configurazione OpenVPN (.ovpn o .conf) devono essere posizionati nella
 L'applicazione supporta:
 
 - Autenticazione con certificati
-- Autenticazione username/password
+- Autenticazione username/password (dal form oppure da un file `<config>.auth` salvato accanto alla configurazione)
 - Configurazioni multiple
 
 ## Sicurezza
