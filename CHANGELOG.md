@@ -9,6 +9,8 @@ e questo progetto aderisce al [Semantic Versioning 2.0.0](https://semver.org/lan
 
 ### Aggiunto
 
+- File di versione unico `version.js`, letto da server, OpenAPI, endpoint pubblico `GET /api/version` e footer di `index.html`/`login.html` (`public/app-version.js`). Script `npm run set-version -- <x.y.z>` per aggiornare anche `package.json`, `package-lock.json`, `Dockerfile` e `docker-compose.yml`
+- Docker: label OCI `org.opencontainers.image.version`, tag immagine `openvpn-manager:<versione>` e `HEALTHCHECK` su `/api/version`
 - Autenticazione per l'interfaccia web tramite sessione (login utente) con `express-session`
 - Pagina di login (`/login`) e endpoint `/api/auth/login`, `/api/auth/logout`, `/api/auth/status`
 - Rate limiting sulle API con `express-rate-limit` (limite più restrittivo per il login)

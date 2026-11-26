@@ -1,6 +1,7 @@
 services:
   openvpn-manager:
     build: .
+    image: openvpn-manager:1.0.0
     container_name: openvpn-manager
     ports:
       - "4000:4000"
